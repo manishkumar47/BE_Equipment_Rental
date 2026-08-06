@@ -1,0 +1,6 @@
+- make price  - float    ---DONE
+
+- soft delete       ---DONE
+
+- api : /get users          ---DONE
+      /delete users
