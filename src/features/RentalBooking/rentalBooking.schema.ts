@@ -18,4 +18,8 @@ export const rentalBookingSchema = z
   .refine((data) => data.rentTo >= data.rentFrom, {
     message: "rentTo must be greater than or equal to rentFrom!",
     path: ["rentTo"],
+  })
+  .refine((data) => new Date() <= data.rentFrom, {
+    message: "rentFrom must be greater than or equal to current time!",
+    path: ["rentFrom"],
   });
