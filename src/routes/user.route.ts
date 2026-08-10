@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { validate } from "../middlewares/validate.middleware.js";
-import { userSchema } from "../features/Users/user.schema.js";
+import {
+  updateUserRoleSchema,
+  userSchema,
+} from "../features/Users/user.schema.js";
 import * as userController from "../features/Users/user.controller.js";
 import { isAdmin } from "../features/Auth/auth.middleware.js";
 const userRouter = Router();
@@ -95,6 +98,52 @@ userRouter.post("/", validate(userSchema), userController.createUser);
  *         description: Internal server error
  */
 userRouter.get("/", userController.getAllUsers);
+
+/**
+ * @openapi
+ * /users/{id}/role:
+ *   patch:
+ *     summary: Update a user's role (admin only)
+ *     tags: [Users]
+ *     security:
+ *       - AuthorizationAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - role
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [ADMIN, USER]
+ *                 example: ADMIN
+ *     responses:
+ *       200:
+ *         description: User role updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+userRouter.patch(
+  "/:id/role",
+  isAdmin,
+  validate(updateUserRoleSchema),
+  userController.updateUserRole,
+);
 
 /**
  * @openapi

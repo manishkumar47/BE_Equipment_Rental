@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { authenticateRequest } from "../../helpers/auth.helper.js";
+import { authenticateRequest } from "../helpers/auth.helper.js";
 
 export const isAdmin = async (
   req: Request,

@@ -6,6 +6,10 @@ export interface CreateUserType {
   role?: "USER" | "ADMIN";
 }
 
+export interface UpdateUserRoleType {
+  role: "USER" | "ADMIN";
+}
+
 export type UserTokenProp = {
   userTokenPayload: {
     id: number;
