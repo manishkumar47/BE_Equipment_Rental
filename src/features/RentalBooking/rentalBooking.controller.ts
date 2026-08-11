@@ -14,7 +14,7 @@ export const createRentalBooking = async (req: Request, res: Response) => {
 
     const userId = await getUserIdFromToken(req);
     if (!userId) {
-      return errorResponse(res, 404, "User not logged in!");
+      return errorResponse(res, 401, "User not authorized!");
     }
     const equipment = await equipmentService.getEquipmentFromId(equipmentId);
     if (!equipment) {

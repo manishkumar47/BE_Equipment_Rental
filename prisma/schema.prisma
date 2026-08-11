@@ -12,13 +12,13 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
-  email     String   @unique
+  email     String    @unique
   password  String
-  createdAt DateTime @default(now())
-  role      Role     @default(USER)
-  isDeleted Boolean  @default(false)
+  createdAt DateTime  @default(now()) 
+  role      Role      @default(USER)
+  isDeleted Boolean   @default(false) 
   deletedAt DateTime?
 
   RentalBooking RentalBooking[]
@@ -37,16 +37,19 @@ model Equipment {
 }
 
 model RentalBooking {
-  id          Int       @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   rentFrom    DateTime
   rentTo      DateTime
   quantity    Int
   userId      Int
   equipmentId Int
-  isDeleted   Boolean   @default(false)
-  deletedAt   DateTime?
-  Equipment   Equipment @relation(fields: [equipmentId], references: [id])
-  User        User      @relation(fields: [userId], references: [id])
+
+  isReminderSent Boolean @default(false)
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  Equipment Equipment @relation(fields: [equipmentId], references: [id])
+  User      User      @relation(fields: [userId], references: [id])
 }
 
 enum Role {

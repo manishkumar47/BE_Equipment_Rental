@@ -9,7 +9,6 @@ export const rentalBookingSchema = z
       message: "Please provide a valid end date!",
     }),
     quantity: z.number().int().positive("Quantity must be a positive integer!"),
-    userId: z.number().int().positive("User ID must be a positive integer!"),
     equipmentId: z
       .number()
       .int()
