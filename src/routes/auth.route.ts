@@ -3,6 +3,8 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { userSchema } from "../features/Users/user.schema.js";
 import * as authController from "../features/Auth/auth.controller.js";
 import * as userController from "../features/Users/user.controller.js";
+import loginRateLimiter from "../middlewares/ratelimiter/loginRateLimiter.middleware.js";
+import registerRateLimiter from "../middlewares/ratelimiter/registerRateLimiter.middleware.js";
 const authRouter = Router();
 
 /**
@@ -49,7 +51,12 @@ const authRouter = Router();
  *       500:
  *         description: Internal server error
  */
-authRouter.post("/login", validate(userSchema), authController.loginUser);
+authRouter.post(
+  "/login",
+  loginRateLimiter,
+  validate(userSchema),
+  authController.loginUser,
+);
 
 /**
  * @openapi
@@ -102,5 +109,10 @@ authRouter.post("/login", validate(userSchema), authController.loginUser);
  *       500:
  *         description: Internal server error
  */
-authRouter.post("/signup", validate(userSchema), userController.createUser);
+authRouter.post(
+  "/signup",
+  registerRateLimiter,
+  validate(userSchema),
+  userController.createUser,
+);
 export default authRouter;
