@@ -22,7 +22,6 @@ const rentalBookingRouter = Router();
  *             required:
  *               - rentFrom
  *               - rentTo
- *               - userId
  *               - equipmentId
  *             properties:
  *               rentFrom:
@@ -34,9 +33,6 @@ const rentalBookingRouter = Router();
  *                 format: date-time
  *                 example: 2026-08-12T10:00:00.000Z
  *               quantity:
- *                 type: integer
- *                 example: 2
- *               userId:
  *                 type: integer
  *                 example: 2
  *               equipmentId:
