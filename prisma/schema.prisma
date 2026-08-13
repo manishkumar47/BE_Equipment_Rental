@@ -16,12 +16,22 @@ model User {
   name      String
   email     String    @unique
   password  String
-  createdAt DateTime  @default(now()) 
+  createdAt DateTime  @default(now())
   role      Role      @default(USER)
-  isDeleted Boolean   @default(false) 
+  isDeleted Boolean   @default(false)
   deletedAt DateTime?
 
   RentalBooking RentalBooking[]
+  PasswordReset PasswordReset[]
+}
+
+model PasswordReset {
+  id       Int      @id @default(autoincrement())
+  token    String
+  expiryAt DateTime
+  user_id  Int
+  used     Boolean  @default(false)
+  User     User     @relation(fields: [user_id], references: [id])
 }
 
 model Equipment {
