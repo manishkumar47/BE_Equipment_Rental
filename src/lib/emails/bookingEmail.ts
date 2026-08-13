@@ -1,6 +1,23 @@
 import { BookingEmailProps } from "../../types/nodemailer.types.js";
 import { transporter } from "../nodemailer.js";
 import { logger } from "../pinoLogger.js";
+import { renderEmailTemplate } from "./templateRenderer.js";
+
+const formatDateTime = (date: Date) => date.toLocaleString();
+
+const buildBookingContext = ({
+  user,
+  equipment,
+  booking,
+}: BookingEmailProps) => ({
+  user,
+  equipment,
+  booking: {
+    ...booking,
+    rentFrom: formatDateTime(booking.rentFrom),
+    rentTo: formatDateTime(booking.rentTo),
+  },
+});
 
 export const sendBookingComplete = async ({
   user,
@@ -8,53 +25,21 @@ export const sendBookingComplete = async ({
   booking,
 }: BookingEmailProps) => {
   try {
+    const context = buildBookingContext({ user, equipment, booking });
+    const html = await renderEmailTemplate("bookingComplete", context);
+    const text = await renderEmailTemplate("bookingCompleteText", context);
+
     await transporter.sendMail({
       from: process.env.SMTP_USER,
       to: user.email,
-
       subject: "Equipment Rental Booking Confirmed",
-      text: `
-Hello ${user.name},
-
-Your equipment rental booking has been confirmed.
-
-
-
-Equipment: ${equipment.name}
-Quantity: ${booking.quantity}
-Price: ${equipment.price}
-
-Rented From: ${booking.rentFrom.toLocaleString()}
-Rented To: ${booking.rentTo.toLocaleString()}
-
-Thank you for using our Equipment Rental System.
-      `,
-
-      html: `
-        <h2>Booking Confirmed 🎉</h2>
-
-        <p>Hello <strong>${user.name}</strong>,</p>
-
-        <p>Your equipment rental booking has been confirmed.</p>
-
-        <h3>Booking Details</h3>
-
-        <ul>
-    
-          <li><strong>Equipment:</strong> ${equipment.name}</li>
-          <li><strong>Quantity:</strong> ${booking.quantity}</li>
-          <li><strong>Price:</strong> ${equipment.price}</li>
-          <li><strong>Rented From:</strong> ${booking.rentFrom.toLocaleString()}</li>
-          <li><strong>Rented To:</strong> ${booking.rentTo.toLocaleString()}</li>
-        </ul>
-
-        <p>Thank you for using our Equipment Rental System.</p>
-      `,
+      text,
+      html,
     });
 
     logger.info(`Booking confirmation sent to ${user.email}`);
   } catch (error) {
-    logger.error(`Failed to send booking confirmation:", ${error}`);
+    logger.error({ err: error }, "Failed to send booking confirmation");
   }
 };
 
@@ -64,7 +49,6 @@ export const sendBookingReminder = async ({
   booking,
 }: BookingEmailProps) => {
   try {
-    const rentedTo = booking.rentTo.toLocaleString();
     const remainingMinutes = Math.max(
       0,
       Math.round(
@@ -78,38 +62,26 @@ export const sendBookingReminder = async ({
         ? `${remainingHours}h ${remainingMins}m`
         : `${remainingMins} minute${remainingMins === 1 ? "" : "s"}`;
 
+    const context = {
+      user,
+      equipment,
+      booking: {
+        ...booking,
+        rentFrom: formatDateTime(booking.rentFrom),
+        rentTo: formatDateTime(booking.rentTo),
+        remainingString,
+      },
+    };
+
+    const html = await renderEmailTemplate("bookingReminder", context);
+    const text = await renderEmailTemplate("bookingReminderText", context);
+
     await transporter.sendMail({
       from: process.env.SMTP_USER,
       to: user.email,
       subject: "Reminder: Your rental is about to expire soon",
-      text: `
-Hello ${user.name},
-
-Your rental for ${equipment.name} is about to expire soon.
-
-Equipment: ${equipment.name}
-Quantity: ${booking.quantity}
-Rented To: ${rentedTo}
-Time remaining: ${remainingString}
-
-Please return the equipment on time or extend your booking if needed.
-
-Thank you for using our Equipment Rental System.
-      `,
-      html: `
-        <h2>Rental Reminder</h2>
-        <p>Hello <strong>${user.name}</strong>,</p>
-        <p>Your rented equipment time is about to expire soon.</p>
-        <h3>Rental Details</h3>
-        <ul>
-          <li><strong>Equipment:</strong> ${equipment.name}</li>
-          <li><strong>Quantity:</strong> ${booking.quantity}</li>
-          <li><strong>Rented To:</strong> ${rentedTo}</li>
-          <li><strong>Time remaining:</strong> ${remainingString}</li>
-        </ul>
-        <p>Please return the equipment on time or contact us to extend your booking.</p>
-        <p>Thank you for using our Equipment Rental System.</p>
-      `,
+      text,
+      html,
     });
 
     logger.info(

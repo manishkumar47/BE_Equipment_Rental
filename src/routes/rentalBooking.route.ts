@@ -2,6 +2,7 @@ import { Router } from "express";
 import { rentalBookingSchema } from "../features/RentalBooking/rentalBooking.schema.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { auth } from "../features/Auth/auth.middleware.js";
+import bookingRateLimiter from "../middlewares/ratelimiter/bookingRateLimiter.middleware.js";
 import * as rentalBookingController from "../features/RentalBooking/rentalBooking.controller.js";
 const rentalBookingRouter = Router();
 
@@ -52,8 +53,9 @@ const rentalBookingRouter = Router();
  */
 rentalBookingRouter.post(
   "/",
-  validate(rentalBookingSchema),
+  bookingRateLimiter,
   auth,
+  validate(rentalBookingSchema),
   rentalBookingController.createRentalBooking,
 );
 

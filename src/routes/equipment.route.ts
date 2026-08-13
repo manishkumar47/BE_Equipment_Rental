@@ -3,6 +3,7 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { equipmentSchema } from "../features/Equipments/equipment.schema.js";
 import * as equipmentController from "../features/Equipments/equipment.controller.js";
 import { isAdmin } from "../features/Auth/auth.middleware.js";
+import generalRateLimiter from "../middlewares/ratelimiter/generalRateLimiter.middleware.js";
 
 const equipmentRouter = Router();
 /**
@@ -58,6 +59,7 @@ const equipmentRouter = Router();
 equipmentRouter.post(
   "/",
   isAdmin,
+  generalRateLimiter,
   validate(equipmentSchema),
   equipmentController.createEquipment,
 );
@@ -89,7 +91,11 @@ equipmentRouter.post(
  *       500:
  *         description: Internal server error
  */
-equipmentRouter.get("/", equipmentController.getAllEquipments);
+equipmentRouter.get(
+  "/",
+  generalRateLimiter,
+  equipmentController.getAllEquipments,
+);
 
 /**
  * @openapi
@@ -134,6 +140,7 @@ equipmentRouter.get("/", equipmentController.getAllEquipments);
 equipmentRouter.put(
   "/:id",
   isAdmin,
+  generalRateLimiter,
   validate(equipmentSchema.partial()),
   equipmentController.updateEquipment,
 );
@@ -158,6 +165,11 @@ equipmentRouter.put(
  *       500:
  *         description: Internal server error
  */
-equipmentRouter.delete("/:id", isAdmin, equipmentController.deleteEquipment);
+equipmentRouter.delete(
+  "/:id",
+  isAdmin,
+  generalRateLimiter,
+  equipmentController.deleteEquipment,
+);
 
 export default equipmentRouter;

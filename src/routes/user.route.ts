@@ -6,6 +6,7 @@ import {
 } from "../features/Users/user.schema.js";
 import * as userController from "../features/Users/user.controller.js";
 import { isAdmin } from "../features/Auth/auth.middleware.js";
+import generalRateLimiter from "../middlewares/ratelimiter/generalRateLimiter.middleware.js";
 const userRouter = Router();
 
 /**
@@ -59,7 +60,12 @@ const userRouter = Router();
  *       500:
  *         description: Internal server error
  */
-userRouter.post("/", validate(userSchema), userController.createUser);
+userRouter.post(
+  "/",
+  generalRateLimiter,
+  validate(userSchema),
+  userController.createUser,
+);
 
 /**
  * @openapi
@@ -97,7 +103,7 @@ userRouter.post("/", validate(userSchema), userController.createUser);
  *       500:
  *         description: Internal server error
  */
-userRouter.get("/", userController.getAllUsers);
+userRouter.get("/", generalRateLimiter, userController.getAllUsers);
 
 /**
  * @openapi
@@ -140,6 +146,7 @@ userRouter.get("/", userController.getAllUsers);
  */
 userRouter.patch(
   "/:id/role",
+  generalRateLimiter,
   isAdmin,
   validate(updateUserRoleSchema),
   userController.updateUserRole,
@@ -171,6 +178,11 @@ userRouter.patch(
  *       500:
  *         description: Internal server error
  */
-userRouter.delete("/:id", isAdmin, userController.deleteUser);
+userRouter.delete(
+  "/:id",
+  generalRateLimiter,
+  isAdmin,
+  userController.deleteUser,
+);
 
 export default userRouter;
