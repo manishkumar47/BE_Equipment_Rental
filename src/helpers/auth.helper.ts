@@ -14,7 +14,7 @@ export const authenticateRequest = async (
     const authHeader = req.get("Authorization") || req.headers.authorization;
 
     if (!authHeader) {
-      return errorResponse(res, 401, "No token");
+      return errorResponse(res, 401, "Not logged in!");
     }
 
     const token = authHeader.startsWith("Bearer ")
