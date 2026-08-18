@@ -1,5 +1,5 @@
-import { transporter } from "../nodemailer.js";
-import { logger } from "../pinoLogger.js";
+import { transporter } from "../../services/nodemailer.js";
+import { logger } from "../../services/pinoLogger.js";
 import { renderEmailTemplate } from "./templateRenderer.js";
 
 type UserSimple = { name: string; email: string };

@@ -1,33 +1,25 @@
-import { Prisma } from "@prisma/client";
 import * as userRepository from "./user.repository.js";
-import { CreateUserType } from "./user.type.js";
+import type { CreateUserType } from "./user.type.js";
 import { hashpassword } from "../../helpers/bcrypt.helper.js";
+import { AppError } from "../../utils/appError.js";
 
 export const createUser = async (data: CreateUserType) => {
-  try {
-    const existingUser = await userRepository.findUserByEmail(data.email);
-    if (existingUser) {
-      throw new Error("User already exists with this email.");
-    }
-
-    const hashedpassword = await hashpassword(data.password);
-
-    const userToCreate: CreateUserType = {
-      ...data,
-      password: hashedpassword,
-    };
-
-    const createdUser = await userRepository.createUser(userToCreate);
-    return createdUser;
-  } catch (err) {
-    if (
-      err instanceof Prisma.PrismaClientKnownRequestError &&
-      err.code === "P2002"
-    ) {
-      throw new Error("User already exists with this email.");
-    }
-    throw err;
+  const existingUser = await userRepository.findUserByEmail(data.email);
+  if (existingUser) {
+    throw new AppError(409, "User already exists with this email.");
   }
+
+  const hashedpassword = await hashpassword(data.password);
+
+  const userToCreate: CreateUserType = {
+    name: data.name,
+    email: data.email,
+    password: hashedpassword,
+    role: "USER", // Default role strictly to USER on public registration
+  };
+
+  const createdUser = await userRepository.createUserByDrizzle(userToCreate);
+  return createdUser;
 };
 
 export const getAllUsers = async () => {
@@ -42,12 +34,16 @@ export const updateUserRole = async (
   const existingUser = await userRepository.findUserById(userId);
 
   if (!existingUser || existingUser.isDeleted) {
-    throw new Error("User not found!");
+    throw new AppError(404, "User not found!");
   }
 
   return userRepository.updateUserRole(userId, role);
 };
 
 export const deleteUser = async (userId: number) => {
+  const existingUser = await userRepository.findUserById(userId);
+  if (!existingUser || existingUser.isDeleted) {
+    throw new AppError(404, "User not found!");
+  }
   return userRepository.softDeleteUser(userId);
 };

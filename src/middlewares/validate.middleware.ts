@@ -1,5 +1,5 @@
 import { ZodObject } from "zod";
-import { Request, Response, NextFunction } from "express";
+import type{ Request, Response, NextFunction } from "express";
 import { errorResponse } from "../helpers/res.helper.js";
 
 export const validate =

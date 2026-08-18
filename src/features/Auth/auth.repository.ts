@@ -1,10 +1,18 @@
-import prismaClient from "../../lib/prisma.js";
+import db from "../../services/drizzle.js";
 import bcrypt from "bcrypt";
+import crypto from "node:crypto";
+import { eq } from "drizzle-orm";
+import { user, passwordReset } from "../../db/schema.js";
+
+export const hashResetToken = (token: string): string => {
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
+
 export const findUserByEmailAndPassword = async (
   email: string,
   password: string,
 ) => {
-  const userexist = await prismaClient.user.findUnique({
+  const userexist = await db.query.user.findFirst({
     where: { email },
   });
   if (!userexist) {
@@ -18,7 +26,7 @@ export const findUserByEmailAndPassword = async (
 };
 
 export const findUserByEmail = async (email: string) => {
-  const userexist = await prismaClient.user.findUnique({
+  const userexist = await db.query.user.findFirst({
     where: { email },
   });
   if (!userexist) {
@@ -28,39 +36,46 @@ export const findUserByEmail = async (email: string) => {
 };
 
 export const updateUserPassword = async (email: string, password: string) => {
-  return prismaClient.user.update({
-    where: { email },
-    data: { password },
-    select: { id: true, email: true, name: true },
-  });
+  const [updated] = await db
+    .update(user)
+    .set({ password })
+    .where(eq(user.email, email))
+    .returning({ id: user.id, email: user.email, name: user.name });
+  return updated;
 };
 
 export const createPasswordReset = async (
   userId: number,
-  token: string,
+  rawToken: string,
   expiryAt: Date,
 ) => {
-  return prismaClient.passwordReset.create({
-    data: { token, expiryAt, user_id: userId },
-  });
+  const hashedToken = hashResetToken(rawToken);
+  const [created] = await db
+    .insert(passwordReset)
+    .values({ token: hashedToken, expiryAt, userId })
+    .returning();
+  return created;
 };
 
-export const findPasswordResetByToken = async (token: string) => {
-  return prismaClient.passwordReset.findFirst({
+export const findPasswordResetByToken = async (rawToken: string) => {
+  const hashedToken = hashResetToken(rawToken);
+  return db.query.passwordReset.findFirst({
     where: {
-      token,
+      token: hashedToken,
       used: false,
-      expiryAt: {
-        gt: new Date(),
-      },
+      expiryAt: { gt: new Date() },
     },
-    include: { User: true },
+    with: {
+      user: true,
+    },
   });
 };
 
 export const markPasswordResetUsed = async (id: number) => {
-  return prismaClient.passwordReset.update({
-    where: { id },
-    data: { used: true },
-  });
+  const [updated] = await db
+    .update(passwordReset)
+    .set({ used: true })
+    .where(eq(passwordReset.id, id))
+    .returning();
+  return updated;
 };

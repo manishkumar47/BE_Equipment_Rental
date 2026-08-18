@@ -1,8 +1,8 @@
-import { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { errorResponse } from "./res.helper.js";
-
-import { MyTokenPayload } from "../features/Users/user.type.js";
+import type { MyTokenPayload } from "../features/Users/user.type.js";
+import { env } from "../config/env.js";
 
 export const authenticateRequest = async (
   req: Request,
@@ -25,30 +25,27 @@ export const authenticateRequest = async (
       return errorResponse(res, 401, "User not authenticated!");
     }
 
-    const decodedToken = jwt.verify(
-      token,
-      process.env.JWT_SECRET!,
-    ) as MyTokenPayload;
+    const decodedToken = jwt.verify(token, env.JWT_SECRET) as MyTokenPayload;
 
     if (!decodedToken) {
       return errorResponse(res, 401, "Invalid or expired token!");
     }
 
-    if (requiredRole) {
-      if (decodedToken.role !== requiredRole) {
-        return errorResponse(res, 403, "Not authorized!");
-      }
-    } else if (decodedToken.role !== "USER") {
-      return errorResponse(res, 403, "Not authorized!");
+    // Role-based authorization with hierarchy: ADMIN can access USER routes
+    if (requiredRole === "ADMIN" && decodedToken.role !== "ADMIN") {
+      return errorResponse(res, 403, "Forbidden: Admin access required!");
     }
 
+    req.user = decodedToken;
     next();
   } catch (error) {
     return errorResponse(res, 401, "Invalid or expired token!");
   }
 };
 
-export const getUserIdFromToken = async (req: Request) => {
+export const getUserIdFromToken = (req: Request): number | null => {
+  if (req.user?.id) return req.user.id;
+
   try {
     const authHeader = req.get("Authorization") || req.headers.authorization;
     if (!authHeader) return null;
@@ -56,17 +53,16 @@ export const getUserIdFromToken = async (req: Request) => {
       ? authHeader.replace("Bearer ", "").trim()
       : authHeader.trim();
 
-    const decodedToken = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "secret",
-    ) as MyTokenPayload;
-    return decodedToken.id;
-  } catch (error) {
+    const decoded = jwt.verify(token, env.JWT_SECRET) as MyTokenPayload;
+    return decoded?.id ?? null;
+  } catch {
     return null;
   }
 };
 
-export const getTokenPayload = async (req: Request) => {
+export const getTokenPayload = (req: Request): MyTokenPayload | null => {
+  if (req.user) return req.user;
+
   try {
     const authHeader = req.get("Authorization") || req.headers.authorization;
     if (!authHeader) return null;
@@ -75,11 +71,8 @@ export const getTokenPayload = async (req: Request) => {
       ? authHeader.replace("Bearer ", "").trim()
       : authHeader.trim();
 
-    return jwt.verify(
-      token,
-      process.env.JWT_SECRET || "secret",
-    ) as MyTokenPayload;
-  } catch (error) {
+    return (jwt.verify(token, env.JWT_SECRET) as MyTokenPayload) ?? null;
+  } catch {
     return null;
   }
 };

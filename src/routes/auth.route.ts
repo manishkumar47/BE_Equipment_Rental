@@ -1,11 +1,16 @@
 import { Router } from "express";
 import { validate } from "../middlewares/validate.middleware.js";
 import { userSchema } from "../features/Users/user.schema.js";
+import {
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} from "../features/Auth/auth.schema.js";
 import * as authController from "../features/Auth/auth.controller.js";
 import * as userController from "../features/Users/user.controller.js";
 import loginRateLimiter from "../middlewares/ratelimiter/loginRateLimiter.middleware.js";
 import registerRateLimiter from "../middlewares/ratelimiter/registerRateLimiter.middleware.js";
-import { auth } from "../Auth/auth.middleware.js";
+
 const authRouter = Router();
 
 /**
@@ -34,19 +39,8 @@ const authRouter = Router();
  *     responses:
  *       200:
  *         description: User found and logged in successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: User Found
- *                 data:
- *                   type: object
+ *       400:
+ *         description: Validation error
  *       404:
  *         description: User not found
  *       500:
@@ -55,7 +49,7 @@ const authRouter = Router();
 authRouter.post(
   "/login",
   loginRateLimiter,
-  validate(userSchema),
+  validate(loginSchema),
   authController.loginUser,
 );
 
@@ -87,26 +81,13 @@ authRouter.post(
  *                 type: string
  *                 minLength: 8
  *                 example: password123
- *               role:
- *                 type: string
- *                 enum: [ADMIN, USER]
- *                 example: USER
  *     responses:
  *       201:
  *         description: User account created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: User created!
- *                 data:
- *                   type: object
+ *       400:
+ *         description: Validation error
+ *       409:
+ *         description: User already exists
  *       500:
  *         description: Internal server error
  */
@@ -121,9 +102,8 @@ authRouter.post(
  * @openapi
  * /auth/reset-password:
  *   post:
- *     summary: Reset user password using token in Authorization header
+ *     summary: Reset user password using token
  *     tags: [Auth]
- *     
  *     requestBody:
  *       required: true
  *       content:
@@ -148,7 +128,12 @@ authRouter.post(
  *       500:
  *         description: Internal server error
  */
-authRouter.post("/reset-password", authController.resetPassword);
+authRouter.post(
+  "/reset-password",
+  validate(resetPasswordSchema),
+  authController.resetPassword,
+);
+
 /**
  * @openapi
  * /auth/forgot-password:
@@ -178,5 +163,10 @@ authRouter.post("/reset-password", authController.resetPassword);
  *       500:
  *         description: Internal server error
  */
-authRouter.post("/forgot-password", auth, authController.forgotPassword);
+authRouter.post(
+  "/forgot-password",
+  validate(forgotPasswordSchema),
+  authController.forgotPassword,
+);
+
 export default authRouter;

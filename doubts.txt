@@ -1,7 +1,0 @@
-what should services have? 
-
-return before res.json() ------DONE
-
-where to return error and how to handle returned error in controller  -----DONE
-
-swagger docs : external file??   -----DONE

@@ -1,27 +1,28 @@
-import { Request, Response } from "express";
-import { errorResponse, successResponse } from "../../helpers/res.helper.js";
-import {
-  getTokenPayload,
-  getUserIdFromToken,
-} from "../../helpers/auth.helper.js";
+import type { NextFunction, Request, Response } from "express";
+import { successResponse } from "../../helpers/res.helper.js";
 import * as equipmentService from "../Equipments/equipment.service.js";
 import * as rentalBookingService from "./rentalBooking.service.js";
-import { CreateRentalBookingObject } from "./rentalBooking.type.js";
+import type { CreateRentalBookingObject } from "./rentalBooking.type.js";
+import { AppError } from "../../utils/appError.js";
 
-export const createRentalBooking = async (req: Request, res: Response) => {
+export const createRentalBooking = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { equipmentId, rentTo, rentFrom, quantity } = req.body;
 
-    const userId = await getUserIdFromToken(req);
+    const userId = req.user?.id;
     if (!userId) {
-      return errorResponse(res, 401, "User not authorized!");
+      throw new AppError(401, "User not authorized!");
     }
     const equipment = await equipmentService.getEquipmentFromId(equipmentId);
     if (!equipment) {
-      return errorResponse(res, 404, "Equipment Not Found!");
+      throw new AppError(404, "Equipment Not Found!");
     }
     if (quantity > equipment.quantity) {
-      return errorResponse(res, 409, "Insufficient stock!");
+      throw new AppError(409, "Insufficient stock!");
     }
     const createRentalBookingObject: CreateRentalBookingObject = {
       userId,
@@ -35,7 +36,7 @@ export const createRentalBooking = async (req: Request, res: Response) => {
     );
 
     if (!rentalBooking) {
-      return errorResponse(res, 500, "Could not create booking!");
+      throw new AppError(500, "Could not create booking!");
     }
     await equipmentService.updateEquipment(equipmentId, {
       quantity: equipment.quantity - quantity,
@@ -46,28 +47,31 @@ export const createRentalBooking = async (req: Request, res: Response) => {
       data: rentalBooking,
     });
   } catch (error) {
-    return errorResponse(res, 500, `${(error as Error).message}`);
+    return next(error);
   }
 };
 
-export const deleteRentalBooking = async (req: Request, res: Response) => {
+export const deleteRentalBooking = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const bookingId = Number(req.params.id);
-    const requesterId = await getUserIdFromToken(req);
+    const requesterId = req.user?.id;
 
     if (!requesterId) {
-      return errorResponse(res, 401, "User not logged in!");
+      throw new AppError(401, "User not logged in!");
     }
 
     const booking = await rentalBookingService.getRentalBookingById(bookingId);
     if (!booking) {
-      return errorResponse(res, 404, "Booking not found!");
+      throw new AppError(404, "Booking not found!");
     }
 
-    const decodedToken = await getTokenPayload(req);
-    const isAdmin = decodedToken?.role === "ADMIN";
+    const isAdmin = req.user?.role === "ADMIN";
     if (!isAdmin && booking.userId !== requesterId) {
-      return errorResponse(res, 403, "Not authorized!");
+      throw new AppError(403, "Not authorized!");
     }
 
     await rentalBookingService.deleteRentalBooking(bookingId);
@@ -77,6 +81,6 @@ export const deleteRentalBooking = async (req: Request, res: Response) => {
       message: "Booking deleted!",
     });
   } catch (error) {
-    return errorResponse(res, 500, `${(error as Error).message}`);
+    return next(error);
   }
 };

@@ -1,9 +1,14 @@
-import { Request, Response } from "express";
-import { errorResponse, successResponse } from "../../helpers/res.helper.js";
+import type{ Request, Response, NextFunction } from "express";
+import { successResponse } from "../../helpers/res.helper.js";
 import * as userService from "./user.service.js";
-import { CreateUserType, UpdateUserRoleType } from "./user.type.js";
+import type { CreateUserType, UpdateUserRoleType } from "./user.type.js";
+import { AppError } from "../../utils/appError.js";
 
-export const createUser = async (req: Request, res: Response) => {
+export const createUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const body: CreateUserType = req.body;
     const user = await userService.createUser(body);
@@ -14,17 +19,21 @@ export const createUser = async (req: Request, res: Response) => {
     });
   } catch (err) {
     if (err instanceof Error && err.message.includes("already exists")) {
-      return errorResponse(res, 409, err.message);
+      return next(new AppError(409, err.message));
     }
-    return errorResponse(res, 500, "Internal Server Error");
+    return next(err);
   }
 };
 
-export const getAllUsers = async (_req: Request, res: Response) => {
+export const getAllUsers = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const users = await userService.getAllUsers();
     if (!users) {
-      return errorResponse(res, 404, "No users found!");
+      throw new AppError(404, "No users found!");
     }
     return successResponse(res, {
       status: 200,
@@ -32,11 +41,15 @@ export const getAllUsers = async (_req: Request, res: Response) => {
       data: users,
     });
   } catch (err) {
-    return errorResponse(res, 500, "Internal Server Error");
+    return next(err);
   }
 };
 
-export const updateUserRole = async (req: Request, res: Response) => {
+export const updateUserRole = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = Number(req.params.id);
     const body: UpdateUserRoleType = req.body;
@@ -45,22 +58,26 @@ export const updateUserRole = async (req: Request, res: Response) => {
     return successResponse(res, {
       status: 200,
       message: "User role updated",
-      data: updatedUser,
+      data: updatedUser!,
     });
   } catch (err) {
     if (err instanceof Error && err.message === "User not found!") {
-      return errorResponse(res, 404, err.message);
+      return next(new AppError(404, err.message));
     }
-    return errorResponse(res, 500, "Internal Server Error");
+    return next(err);
   }
 };
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = Number(req.params.id);
     await userService.deleteUser(userId);
     return successResponse(res, { status: 200, message: "User deleted" });
   } catch (err) {
-    return errorResponse(res, 500, "Internal Server Error");
+    return next(err);
   }
 };

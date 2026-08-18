@@ -1,45 +1,73 @@
-import prismaClient from "../../lib/prisma.js";
-import { CreateRentalBookingObject } from "./rentalBooking.type.js";
+import db from "../../services/drizzle.js";
+import { eq } from "drizzle-orm";
+import { rentalBooking } from "../../db/schema.js";
+import type { CreateRentalBookingObject } from "./rentalBooking.type.js";
 
 export const createRentalBooking = async (
   createRentalBookingObject: CreateRentalBookingObject,
 ) => {
-  const rentalBooking = await prismaClient.rentalBooking.create({
-    data: createRentalBookingObject,
-    include: {
-      User: true,
-      Equipment: true,
+  const [inserted] = await db
+    .insert(rentalBooking)
+    .values(createRentalBookingObject)
+    .returning();
+
+  const booking = await db.query.rentalBooking.findFirst({
+    where: { id: inserted!.id },
+    with: {
+      user: true,
+      equipment: true,
     },
   });
-  return rentalBooking;
+  return booking;
 };
 
 export const getRentalBookingById = async (bookingId: number) => {
-  return prismaClient.rentalBooking.findFirst({
+  return db.query.rentalBooking.findFirst({
     where: { id: bookingId, isDeleted: false },
+    with: {
+      user: true,
+      equipment: true,
+    },
   });
 };
 
 export const deleteRentalBooking = async (bookingId: number) => {
-  return prismaClient.rentalBooking.update({
-    where: { id: bookingId },
-    data: { isDeleted: true, deletedAt: new Date() },
-  });
+  const [deleted] = await db
+    .update(rentalBooking)
+    .set({ isDeleted: true, deletedAt: new Date() })
+    .where(eq(rentalBooking.id, bookingId))
+    .returning();
+  return deleted;
 };
 
 export const getAllRentalBookings = async () => {
-  return prismaClient.rentalBooking.findMany({
+  return db.query.rentalBooking.findMany({
     where: { isDeleted: false },
-    include: {
-      User: true,
-      Equipment: true,
+    with: {
+      user: true,
+      equipment: true,
+    },
+  });
+};
+
+export const getPendingReminderBookings = async () => {
+  return db.query.rentalBooking.findMany({
+    where: {
+      isDeleted: false,
+      isReminderSent: false,
+    },
+    with: {
+      user: true,
+      equipment: true,
     },
   });
 };
 
 export const markReminderSent = async (bookingId: number) => {
-  return prismaClient.rentalBooking.update({
-    where: { id: bookingId },
-    data: { isReminderSent: true },
-  });
+  const [updated] = await db
+    .update(rentalBooking)
+    .set({ isReminderSent: true })
+    .where(eq(rentalBooking.id, bookingId))
+    .returning();
+  return updated;
 };

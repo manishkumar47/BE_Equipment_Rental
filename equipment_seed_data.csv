@@ -1,0 +1,97 @@
+name,description,quantity,price
+Laptop,Dell Inspiron laptop,5,1000
+Laptop,HP Pavilion laptop,4,850
+Laptop,Lenovo IdeaPad laptop,6,900
+Laptop,ASUS VivoBook laptop,5,780
+Laptop,Acer Aspire laptop,4,700
+MacBook,Apple MacBook Air,3,1200
+MacBook,Apple MacBook Pro,2,1800
+Desktop,Dell OptiPlex desktop,5,750
+Desktop,HP EliteDesk desktop,4,800
+Monitor,Dell 24 inch monitor,8,180
+Monitor,LG 27 inch monitor,6,250
+Monitor,Samsung 24 inch monitor,7,200
+Monitor,Acer 27 inch monitor,5,220
+Projector,Epson office projector,3,450
+Projector,BenQ conference projector,4,500
+Projector,Sony HD projector,2,700
+Camera,Canon EOS camera,3,900
+Camera,Nikon DSLR camera,3,850
+Camera,Sony mirrorless camera,4,1100
+Camera,Fujifilm mirrorless camera,2,1000
+Camera,GoPro action camera,6,300
+Lens,Canon 50mm lens,3,180
+Lens,Nikon 50mm lens,3,170
+Lens,Sony 85mm lens,2,650
+Lens,Sigma 24-70mm lens,2,900
+Tripod,Manfrotto camera tripod,5,120
+Tripod,Joby professional tripod,4,90
+Microphone,Rode condenser microphone,5,180
+Microphone,Shure vocal microphone,6,150
+Microphone,Audio-Technica microphone,4,130
+Speaker,JBL portable speaker,6,140
+Speaker,Bose portable speaker,3,220
+Speaker,Sony Bluetooth speaker,5,120
+Headphones,Sony noise cancelling headphones,5,180
+Headphones,Bose wireless headphones,4,250
+Headphones,Audio-Technica headphones,5,160
+Keyboard,Logitech mechanical keyboard,8,80
+Keyboard,Keychron mechanical keyboard,5,110
+Mouse,Logitech wireless mouse,10,35
+Mouse,Microsoft wireless mouse,8,30
+Tablet,Samsung Galaxy tablet,4,450
+Tablet,Apple iPad,3,600
+Tablet,Lenovo Android tablet,5,300
+Printer,HP LaserJet printer,3,350
+Printer,Canon inkjet printer,4,220
+Scanner,Epson document scanner,3,280
+Router,TP-Link WiFi router,8,90
+Router,Netgear WiFi router,5,130
+Network Switch,TP-Link 8-port switch,6,70
+Network Switch,Cisco 16-port switch,3,250
+Webcam,Logitech HD webcam,7,90
+Webcam,Anker conference webcam,4,120
+External Storage,Samsung portable SSD,6,130
+External Storage,SanDisk portable SSD,7,110
+External Storage,WD external hard drive,5,100
+Power Bank,Anker power bank,8,60
+Power Bank,Samsung power bank,6,45
+UPS,APC UPS backup,4,180
+UPS,CyberPower UPS backup,3,160
+Lighting,LED studio light,6,140
+Lighting,Softbox lighting kit,4,180
+Lighting,Ring light,8,70
+Camera Bag,Professional camera bag,5,100
+Cable Kit,HDMI and USB cable kit,10,40
+Adapter,USB-C multiport adapter,8,55
+Docking Station,Dell USB-C docking station,4,180
+Docking Station,Lenovo docking station,3,200
+Standing Desk,Adjustable standing desk,3,450
+Office Chair,Ergonomic office chair,5,300
+Whiteboard,Portable whiteboard,4,90
+Conference Phone,Jabra conference speaker,3,300
+VR Headset,Meta VR headset,2,500
+Game Console,PlayStation 5,2,500
+Game Console,Xbox Series X,2,500
+Capture Card,Elgato capture card,3,180
+Streaming Kit,Streaming starter kit,3,350
+Drone,DJI camera drone,2,900
+Gimbal,DJI camera gimbal,3,400
+Audio Recorder,Zoom audio recorder,4,220
+Mixer,Behringer audio mixer,3,300
+Green Screen,Portable green screen,4,100
+Teleprompter,Portable teleprompter,2,250
+Extension Board,Heavy duty extension board,10,35
+Power Strip,Surge protected power strip,10,30
+Barcode Scanner,Wireless barcode scanner,5,100
+Label Printer,Brother label printer,3,140
+Presentation Clicker,Wireless presentation clicker,8,25
+Document Camera,IPEVO document camera,3,180
+Portable AC,Portable air conditioner,2,600
+Fan,Tower fan,5,100
+Projector Stand,Adjustable projector stand,4,80
+Laptop Stand,Adjustable laptop stand,8,45
+Tablet Stand,Adjustable tablet stand,6,35
+Microphone Stand,Adjustable microphone stand,7,50
+Studio Monitor,KRK studio monitor,4,220
+Audio Interface,Focusrite audio interface,3,250

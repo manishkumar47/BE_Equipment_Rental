@@ -1,18 +1,21 @@
-import { Request, Response } from "express";
-import { errorResponse, successResponse } from "../../helpers/res.helper.js";
+import type { Request, Response, NextFunction } from "express";
+import { successResponse } from "../../helpers/res.helper.js";
 import * as authService from "./auth.service.js";
 import { sendResetPassword } from "../../lib/emails/resetPasswordEmail.js";
 import { hashpassword } from "../../helpers/bcrypt.helper.js";
-import { logger } from "../../lib/pinoLogger.js";
+import { AppError } from "../../utils/appError.js";
 
-export const loginUser = async (req: Request, res: Response) => {
+export const loginUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { email, password } = req.body;
 
     const user = await authService.findUserByEmailAndPassword(email, password);
-
     if (!user) {
-      return errorResponse(res, 404, "Can't find user");
+      throw new AppError(404, "Can't find user");
     }
     const userTokenPayload = {
       id: user.id,
@@ -22,11 +25,7 @@ export const loginUser = async (req: Request, res: Response) => {
 
     const token = await authService.createUserToken({ userTokenPayload });
     if (!token) {
-      return errorResponse(
-        res,
-        500,
-        "Token not generated! Please login again!",
-      );
+      throw new AppError(500, "Token not generated! Please login again!");
     }
     return successResponse(res, {
       status: 200,
@@ -40,21 +39,24 @@ export const loginUser = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    return errorResponse(res, 500, `${(error as Error).message}`);
+    return next(error);
   }
 };
 
-export const resetPassword = async (req: Request, res: Response) => {
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { password, token } = req.body;
 
-    if (!token) return errorResponse(res, 400, "No token provided in headers");
-    if (!password) return errorResponse(res, 400, "New password is required");
+    if (!token) throw new AppError(400, "No token provided in headers");
+    if (!password) throw new AppError(400, "New password is required");
 
     const payload = await authService.verifyPasswordResetToken(token);
-    // logger.debug(`-___--_--_--__pyaload,${payload}`);
     if (!payload || !payload.email) {
-      return errorResponse(res, 400, "Invalid or expired token");
+      throw new AppError(400, "Invalid or expired token");
     }
 
     const hashed = await hashpassword(password);
@@ -63,28 +65,30 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     return successResponse(res, { status: 200, message: "Password updated" });
   } catch (error) {
-    return errorResponse(res, 500, `${(error as Error).message}`);
+    return next(error);
   }
 };
-export const forgotPassword = async (req: Request, res: Response) => {
+export const forgotPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { email } = req.body;
-    if (!email) return errorResponse(res, 400, "Email is required");
+    if (!email) throw new AppError(400, "Email is required");
 
     const user = await authService.findUserByEmail(email);
-    if (!user) return errorResponse(res, 404, "User not found");
 
     const token = await authService.createPasswordResetToken(email);
-    if (!token) return errorResponse(res, 500, "Could not create reset token");
 
     const sent = await sendResetPassword({
       user: { name: user.name, email: user.email },
       token,
     });
-    if (!sent) return errorResponse(res, 500, "Failed to send reset email");
+    if (!sent) throw new AppError(500, "Failed to send reset email");
 
     return successResponse(res, { status: 200, message: "Reset email sent" });
   } catch (error) {
-    return errorResponse(res, 500, `${(error as Error).message}`);
+    return next(error);
   }
 };

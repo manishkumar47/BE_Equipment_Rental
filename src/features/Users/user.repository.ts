@@ -1,21 +1,33 @@
-import prismaClient from "../../lib/prisma.js";
-import { CreateUserType } from "./user.type.js";
+import { eq } from "drizzle-orm";
+import { user } from "../../db/schema.js";
+import db from "../../services/drizzle.js";
+import type { CreateUserType } from "./user.type.js";
 
-export const createUser = async (user: CreateUserType) => {
-  const createdUser = await prismaClient.user.create({
-    data: user,
-  });
+export const createUserByDrizzle = async (User: CreateUserType) => {
+  const userToBe: typeof user.$inferInsert = {
+    name: User.name,
+    email: User.email,
+    password: User.password,
+  };
+
+  const createdUser = await db.insert(user).values(userToBe).returning();
   return createdUser;
 };
 
 export const findUserByEmail = async (email: string) => {
-  return prismaClient.user.findUnique({
+  return db.query.user.findFirst({
+    where: { email },
+  });
+};
+
+export const findUserByEmailByDrizzle = async (email: string) => {
+  return db.query.user.findFirst({
     where: { email },
   });
 };
 
 export const findUserById = async (userId: number) => {
-  return prismaClient.user.findUnique({
+  return db.query.user.findFirst({
     where: { id: userId },
   });
 };
@@ -24,23 +36,24 @@ export const updateUserRole = async (
   userId: number,
   role: "USER" | "ADMIN",
 ) => {
-  return prismaClient.user.update({
-    where: { id: userId },
-    data: { role },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      createdAt: true,
-    },
-  });
+  const [updated] = await db
+    .update(user)
+    .set({ role })
+    .where(eq(user.id, userId))
+    .returning({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+    });
+  return updated;
 };
 
 export const getAllUsers = async () => {
-  return prismaClient.user.findMany({
+  return db.query.user.findMany({
     where: { isDeleted: false },
-    select: {
+    columns: {
       id: true,
       name: true,
       email: true,
@@ -51,8 +64,10 @@ export const getAllUsers = async () => {
 };
 
 export const softDeleteUser = async (userId: number) => {
-  return prismaClient.user.update({
-    where: { id: userId },
-    data: { isDeleted: true, deletedAt: new Date() },
-  });
+  const [updated] = await db
+    .update(user)
+    .set({ isDeleted: true, deletedAt: new Date() })
+    .where(eq(user.id, userId))
+    .returning();
+  return updated;
 };
