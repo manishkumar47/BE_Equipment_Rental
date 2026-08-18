@@ -1,6 +1,6 @@
-import { BookingEmailProps } from "../../types/nodemailer.types.js";
-import { transporter } from "../nodemailer.js";
-import { logger } from "../pinoLogger.js";
+import type { BookingEmailProps } from "../../types/nodemailer.types.js";
+import { transporter } from "../../services/nodemailer.js";
+import { logger } from "../../services/pinoLogger.js";
 import { renderEmailTemplate } from "./templateRenderer.js";
 
 const formatDateTime = (date: Date) => date.toLocaleString();

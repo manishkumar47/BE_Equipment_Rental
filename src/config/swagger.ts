@@ -6,9 +6,9 @@ const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "Meeting Booking API",
+      title: "Equipment Rental API",
       version: "1.0.0",
-      description: "API documentation for the meeting booking backend",
+      description: "API documentation for the Equipment Rental backend service",
     },
     servers: [{ url: `http://localhost:${process.env.PORT ?? 3000}` }],
 
@@ -19,7 +19,7 @@ const options = {
           in: "header",
           name: "Authorization",
           description:
-            "Paste your token here. The server reads it from the Authorization header.",
+            "Paste your token here (or Bearer <token>). The server reads it from the Authorization header.",
         },
       },
     },

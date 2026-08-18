@@ -1,19 +1,18 @@
 import * as rentalBookingService from "../features/RentalBooking/rentalBooking.service.js";
-import { logger } from "../lib/pinoLogger.js";
+import { logger } from "../services/pinoLogger.js";
 import { sendBookingReminder } from "../lib/emails/bookingEmail.js";
 
 export const sendReminderEmail = async () => {
-//   logger.debug("Reminder cron job started");
   try {
-    const allRentalBookings = await rentalBookingService.getAllRentalBookings();
-    if (allRentalBookings.length === 0) {
-      logger.debug("No active rental bookings found for reminder processing.");
+    const pendingBookings =
+      await rentalBookingService.getPendingReminderBookings();
+    if (pendingBookings.length === 0) {
       return;
     }
 
     const now = new Date();
 
-    for (const rentalBooking of allRentalBookings) {
+    for (const rentalBooking of pendingBookings) {
       if (rentalBooking.isReminderSent) continue;
 
       const rentFromDate = new Date(rentalBooking.rentFrom);
@@ -21,7 +20,7 @@ export const sendReminderEmail = async () => {
 
       // Skip bookings that haven't started or are already completely finished
       if (now < rentFromDate || now > rentToDate) continue;
-      if (!rentalBooking.User || !rentalBooking.Equipment) continue;
+      if (!rentalBooking.user || !rentalBooking.equipment) continue;
 
       const totalDurationInMins =
         (rentToDate.getTime() - rentFromDate.getTime()) / (1000 * 60);
@@ -38,10 +37,8 @@ export const sendReminderEmail = async () => {
         targetBufferInMins = 30;
       }
 
-      const windowStart = targetBufferInMins;
-      const windowEnd = targetBufferInMins - 10;
-
-      if (minutesRemaining <= windowStart && minutesRemaining > windowEnd) {
+      // Check if current time is within or past reminder buffer window
+      if (minutesRemaining <= targetBufferInMins) {
         logger.info(
           `🔔 Triggering Email for Booking ID ${rentalBooking.id}. ` +
             `Total Duration: ${(totalDurationInMins / 60).toFixed(1)}h | ` +
@@ -51,13 +48,13 @@ export const sendReminderEmail = async () => {
 
         const reminderSent = await sendBookingReminder({
           user: {
-            name: rentalBooking.User.name,
-            email: rentalBooking.User.email,
+            name: rentalBooking.user.name,
+            email: rentalBooking.user.email,
           },
           equipment: {
-            name: rentalBooking.Equipment.name,
-            description: rentalBooking.Equipment.description,
-            price: rentalBooking.Equipment.price,
+            name: rentalBooking.equipment.name,
+            description: rentalBooking.equipment.description,
+            price: rentalBooking.equipment.price,
           },
           booking: {
             id: rentalBooking.id,
@@ -80,6 +77,6 @@ export const sendReminderEmail = async () => {
       }
     }
   } catch (err) {
-    logger.error(`Error running dynamic reminder cron job ${err}`);
+    logger.error({ err }, "Error running dynamic reminder cron job");
   }
 };

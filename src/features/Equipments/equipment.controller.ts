@@ -1,9 +1,13 @@
-import { Request, Response } from "express";
-import { errorResponse, successResponse } from "../../helpers/res.helper.js";
+import type { NextFunction, Request, Response } from "express";
+import { successResponse } from "../../helpers/res.helper.js";
 import * as equipmentService from "./equipment.service.js";
-import { CreateEquipmentType, UpdateEquipmentType } from "./equipment.type.js";
+import type { CreateEquipmentType, UpdateEquipmentType } from "./equipment.type.js";
 
-export const createEquipment = async (req: Request, res: Response) => {
+export const createEquipment = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const body: CreateEquipmentType = req.body;
     const equipment = await equipmentService.createEquipment(body);
@@ -11,14 +15,18 @@ export const createEquipment = async (req: Request, res: Response) => {
     return successResponse(res, {
       status: 201,
       message: "Equipment created!",
-      data: equipment,
+      data: equipment!,
     });
   } catch (err) {
-    return errorResponse(res, 500, "Internal Server Error");
+    next(err);
   }
 };
 
-export const getAllEquipments = async (_req: Request, res: Response) => {
+export const getAllEquipments = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const equipments = await equipmentService.getAllEquipments();
     return successResponse(res, {
@@ -27,11 +35,15 @@ export const getAllEquipments = async (_req: Request, res: Response) => {
       data: equipments,
     });
   } catch (error) {
-    return errorResponse(res, 500, "Internal Server Error");
+    next(error);
   }
 };
 
-export const updateEquipment = async (req: Request, res: Response) => {
+export const updateEquipment = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const equipmentId = Number(req.params.id);
     const body: UpdateEquipmentType = req.body;
@@ -40,14 +52,18 @@ export const updateEquipment = async (req: Request, res: Response) => {
     return successResponse(res, {
       status: 200,
       message: "Equipment updated!",
-      data: equipment,
+      data: equipment!,
     });
   } catch (error) {
-    return errorResponse(res, 500, "Internal Server Error");
+    next(error);
   }
 };
 
-export const deleteEquipment = async (req: Request, res: Response) => {
+export const deleteEquipment = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const equipmentId = Number(req.params.id);
     await equipmentService.deleteEquipment(equipmentId);
@@ -57,6 +73,6 @@ export const deleteEquipment = async (req: Request, res: Response) => {
       message: "Equipment deleted!",
     });
   } catch (error) {
-    return errorResponse(res, 500, "Internal Server Error");
+    next(error);
   }
 };

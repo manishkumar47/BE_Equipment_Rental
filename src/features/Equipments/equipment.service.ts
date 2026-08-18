@@ -1,5 +1,10 @@
+
 import * as equipmentRepository from "./equipment.repository.js";
-import { CreateEquipmentType, UpdateEquipmentType } from "./equipment.type.js";
+import type {
+  CreateEquipmentType,
+  UpdateEquipmentType,
+} from "./equipment.type.js";
+import { logger } from "../../services/pinoLogger.js";
 
 export const createEquipment = async (data: CreateEquipmentType) => {
   const equipment = await equipmentRepository.createEquipment(data);
@@ -26,3 +31,12 @@ export const getAllEquipments = async () => {
   const equipments = await equipmentRepository.getAllEquipments();
   return equipments;
 };
+
+// export const createBulkEquipments = async (equipments) => {
+//   const data = await equipmentRepository.createBulkEquipments(equipments);
+//   if (!data) {
+//     logger.error("NO DATA !");
+//     return;
+//   }
+//   return data;
+// };

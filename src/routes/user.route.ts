@@ -7,14 +7,17 @@ import {
 import * as userController from "../features/Users/user.controller.js";
 import { isAdmin } from "../features/Auth/auth.middleware.js";
 import generalRateLimiter from "../middlewares/ratelimiter/generalRateLimiter.middleware.js";
+
 const userRouter = Router();
 
 /**
  * @openapi
  * /users:
  *   post:
- *     summary: Create a new user
+ *     summary: Create a new user (Admin only)
  *     tags: [Users]
+ *     security:
+ *       - AuthorizationAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -37,32 +40,22 @@ const userRouter = Router();
  *                 type: string
  *                 minLength: 8
  *                 example: password123
- *               role:
- *                 type: string
- *                 enum: [ADMIN, USER]
- *                 example: USER
  *     responses:
  *       201:
  *         description: User created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: User created!
- *                 data:
- *                   type: object
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  *       500:
  *         description: Internal server error
  */
 userRouter.post(
   "/",
   generalRateLimiter,
+  isAdmin,
   validate(userSchema),
   userController.createUser,
 );
@@ -71,45 +64,32 @@ userRouter.post(
  * @openapi
  * /users:
  *   get:
- *     summary: Get all users (excludes passwords and soft-deleted users)
+ *     summary: Get all users (Admin only)
  *     tags: [Users]
+ *     security:
+ *       - AuthorizationAuth: []
  *     responses:
  *       200:
  *         description: Users fetched successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Users fetched
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: integer
- *                       name:
- *                         type: string
- *                       email:
- *                         type: string
- *                       role:
- *                         type: string
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  *       500:
  *         description: Internal server error
  */
-userRouter.get("/", generalRateLimiter, userController.getAllUsers);
+userRouter.get(
+  "/",
+  generalRateLimiter,
+  isAdmin,
+  userController.getAllUsers,
+);
 
 /**
  * @openapi
  * /users/{id}/role:
  *   patch:
- *     summary: Update a user's role (admin only)
+ *     summary: Update a user's role (Admin only)
  *     tags: [Users]
  *     security:
  *       - AuthorizationAuth: []
@@ -156,7 +136,7 @@ userRouter.patch(
  * @openapi
  * /users/{id}:
  *   delete:
- *     summary: Soft-delete a user (admin only)
+ *     summary: Soft-delete a user (Admin only)
  *     tags: [Users]
  *     security:
  *       - AuthorizationAuth: []
