@@ -20,11 +20,18 @@ export const equipment = pgTable("equipment", {
   description: text("description"),
   quantity: integer("quantity").default(0).notNull(),
   price: doublePrecision("price").notNull(),
+  imageUrl: text("image_url"),
   createdAt: timestamp("created_at", { precision: 3 })
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
   deletedAt: timestamp("deleted_at", { precision: 3 }),
   isDeleted: boolean("is_deleted").default(false).notNull(),
+  equipmentCategoryId: integer("equipment_category_id")
+    .notNull()
+    .references(() => equipmentCategory.id, {
+      onDelete: "restrict",
+      onUpdate: "cascade",
+    }),
 });
 
 export const user = pgTable(
@@ -101,3 +108,10 @@ export const rentalBooking = pgTable(
     ),
   ],
 );
+export const equipmentCategory = pgTable("equipment_category", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at", { precision: 3 })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});

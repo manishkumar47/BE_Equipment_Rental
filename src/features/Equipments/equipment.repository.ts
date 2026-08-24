@@ -7,7 +7,10 @@ import type {
 } from "./equipment.type.js";
 
 export const createEquipment = async (data: CreateEquipmentType) => {
-  const [created] = await db.insert(equipment).values(data).returning();
+  const [created] = await db
+    .insert(equipment)
+    .values(data as typeof equipment.$inferInsert)
+    .returning();
   return created;
 };
 

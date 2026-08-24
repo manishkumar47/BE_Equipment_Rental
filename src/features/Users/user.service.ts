@@ -27,6 +27,20 @@ export const getAllUsers = async () => {
   return users;
 };
 
+export const getUserById = async (userId: number) => {
+  const existingUser = await userRepository.findUserById(userId);
+  if (!existingUser || existingUser.isDeleted) {
+    throw new AppError(404, "User not found!");
+  }
+  return {
+    id: existingUser.id,
+    name: existingUser.name,
+    email: existingUser.email,
+    role: existingUser.role,
+    createdAt: existingUser.createdAt,
+  };
+};
+
 export const updateUserRole = async (
   userId: number,
   role: "USER" | "ADMIN",

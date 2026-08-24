@@ -45,6 +45,45 @@ export const getAllUsers = async (
   }
 };
 
+export const getProfile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError(401, "User not authorized!");
+    }
+    const user = await userService.getUserById(userId);
+    return successResponse(res, {
+      status: 200,
+      message: "Profile fetched",
+      data: user,
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+export const getUserById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = Number(req.params.id);
+    const user = await userService.getUserById(userId);
+    return successResponse(res, {
+      status: 200,
+      message: "User fetched",
+      data: user,
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 export const updateUserRole = async (
   req: Request,
   res: Response,

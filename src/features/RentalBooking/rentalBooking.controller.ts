@@ -51,6 +51,91 @@ export const createRentalBooking = async (
   }
 };
 
+export const getAllRentalBookings = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const isAdmin = req.user?.role === "ADMIN";
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw new AppError(401, "User not authorized!");
+    }
+
+    let bookings;
+    if (isAdmin) {
+      bookings = await rentalBookingService.getAllRentalBookings();
+    } else {
+      bookings = await rentalBookingService.getRentalBookingsByUserId(userId);
+    }
+
+    return successResponse(res, {
+      status: 200,
+      message: "Bookings fetched!",
+      data: bookings,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getMyRentalBookings = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError(401, "User not authorized!");
+    }
+
+    const bookings = await rentalBookingService.getRentalBookingsByUserId(userId);
+    return successResponse(res, {
+      status: 200,
+      message: "User bookings fetched!",
+      data: bookings,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getRentalBookingById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const bookingId = Number(req.params.id);
+    const requesterId = req.user?.id;
+
+    if (!requesterId) {
+      throw new AppError(401, "User not logged in!");
+    }
+
+    const booking = await rentalBookingService.getRentalBookingById(bookingId);
+    if (!booking) {
+      throw new AppError(404, "Booking not found!");
+    }
+
+    const isAdmin = req.user?.role === "ADMIN";
+    if (!isAdmin && booking.userId !== requesterId) {
+      throw new AppError(403, "Not authorized!");
+    }
+
+    return successResponse(res, {
+      status: 200,
+      message: "Booking fetched!",
+      data: booking,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 export const deleteRentalBooking = async (
   req: Request,
   res: Response,

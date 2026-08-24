@@ -2,6 +2,8 @@ import type { NextFunction, Request, Response } from "express";
 import { successResponse } from "../../helpers/res.helper.js";
 import * as equipmentService from "./equipment.service.js";
 import type { CreateEquipmentType, UpdateEquipmentType } from "./equipment.type.js";
+import { equipmentCategory } from "../../db/schema.js";
+import { logger } from "../../services/pinoLogger.js";
 
 export const createEquipment = async (
   req: Request,
@@ -9,8 +11,10 @@ export const createEquipment = async (
   next: NextFunction,
 ) => {
   try {
-    const body: CreateEquipmentType = req.body;
-    const equipment = await equipmentService.createEquipment(body);
+    const body = req.body;
+    console.log(`hdhafhsdi----__-_-_-_-${body}`)
+    const equipmentToBeCreated: CreateEquipmentType = { ...body, equipmentCategoryId: body.categoryId }
+    const equipment = await equipmentService.createEquipment(equipmentToBeCreated);
 
     return successResponse(res, {
       status: 201,
@@ -33,6 +37,31 @@ export const getAllEquipments = async (
       status: 200,
       message: "Equipment fetched!",
       data: equipments,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getEquipmentById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const equipmentId = Number(req.params.id);
+    const equipment = await equipmentService.getEquipmentFromId(equipmentId);
+    if (!equipment) {
+      return res.status(404).json({
+        success: false,
+        message: "Equipment not found",
+        data: null,
+      });
+    }
+    return successResponse(res, {
+      status: 200,
+      message: "Equipment fetched!",
+      data: equipment,
     });
   } catch (error) {
     next(error);

@@ -56,6 +56,10 @@ export const deleteRentalBooking = async (bookingId: number) => {
   return rentalBookingRepository.deleteRentalBooking(bookingId);
 };
 
+export const getRentalBookingsByUserId = async (userId: number) => {
+  return rentalBookingRepository.getRentalBookingsByUserId(userId);
+};
+
 export const getAllRentalBookings = async () => {
   return rentalBookingRepository.getAllRentalBookings();
 };

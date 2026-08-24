@@ -5,10 +5,91 @@ import {
   userSchema,
 } from "../features/Users/user.schema.js";
 import * as userController from "../features/Users/user.controller.js";
-import { isAdmin } from "../features/Auth/auth.middleware.js";
+import { isAdmin, auth } from "../features/Auth/auth.middleware.js";
 import generalRateLimiter from "../middlewares/ratelimiter/generalRateLimiter.middleware.js";
 
 const userRouter = Router();
+
+/**
+ * @openapi
+ * /users/me:
+ *   get:
+ *     summary: Get current authenticated user profile
+ *     tags: [Users]
+ *     security:
+ *       - AuthorizationAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile fetched successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+userRouter.get(
+  "/me",
+  generalRateLimiter,
+  auth,
+  userController.getProfile,
+);
+
+/**
+ * @openapi
+ * /users:
+ *   get:
+ *     summary: Get all users (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - AuthorizationAuth: []
+ *     responses:
+ *       200:
+ *         description: Users fetched successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       500:
+ *         description: Internal server error
+ */
+userRouter.get(
+  "/",
+  generalRateLimiter,
+  isAdmin,
+  userController.getAllUsers,
+);
+
+/**
+ * @openapi
+ * /users/{id}:
+ *   get:
+ *     summary: Get user by ID (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - AuthorizationAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User fetched successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+userRouter.get(
+  "/:id",
+  generalRateLimiter,
+  isAdmin,
+  userController.getUserById,
+);
 
 /**
  * @openapi

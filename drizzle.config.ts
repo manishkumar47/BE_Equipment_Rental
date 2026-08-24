@@ -1,5 +1,8 @@
 import "dotenv/config";
 import { defineConfig } from "drizzle-kit";
+declare const process: {
+  env: Record<string, string | undefined>;
+};
 
 export default defineConfig({
   out: "./drizzle",

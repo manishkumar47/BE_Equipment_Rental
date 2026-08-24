@@ -2,6 +2,7 @@ import { Router } from "express";
 import { validate } from "../middlewares/validate.middleware.js";
 import { equipmentSchema } from "../features/Equipments/equipment.schema.js";
 import * as equipmentController from "../features/Equipments/equipment.controller.js";
+
 import { isAdmin } from "../features/Auth/auth.middleware.js";
 import generalRateLimiter from "../middlewares/ratelimiter/generalRateLimiter.middleware.js";
 
@@ -100,6 +101,32 @@ equipmentRouter.get(
 /**
  * @openapi
  * /equipments/{id}:
+ *   get:
+ *     summary: Get equipment item by ID
+ *     tags: [Equipment]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Equipment fetched successfully
+ *       404:
+ *         description: Equipment not found
+ *       500:
+ *         description: Internal server error
+ */
+equipmentRouter.get(
+  "/:id",
+  generalRateLimiter,
+  equipmentController.getEquipmentById,
+);
+
+/**
+ * @openapi
+ * /equipments/{id}:
  *   put:
  *     summary: Update an equipment item
  *     tags: [Equipment]
@@ -171,5 +198,6 @@ equipmentRouter.delete(
   generalRateLimiter,
   equipmentController.deleteEquipment,
 );
+
 
 export default equipmentRouter;

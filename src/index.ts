@@ -12,6 +12,7 @@ import pinoConfig, { logger } from "./services/pinoLogger.js";
 import initCronJobs from "./crons/cron.scheduler.js";
 import { errorHandler } from "./middlewares/errorhandler.middleware.js";
 import { env } from "./config/env.js";
+import categoryRouter from "./routes/category.route.js";
 
 const app = express();
 
@@ -41,7 +42,7 @@ app.use("/users", userRouter);
 app.use("/auth", authRouter);
 app.use("/equipments", equipmentRouter);
 app.use("/rental-bookings", rentalBookingRouter);
-
+app.use("/category", categoryRouter);
 // Swagger Docs & Global Error Handler
 setupSwagger(app);
 app.use(errorHandler);

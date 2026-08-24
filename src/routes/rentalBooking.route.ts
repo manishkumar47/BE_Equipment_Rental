@@ -61,6 +61,85 @@ rentalBookingRouter.post(
 
 /**
  * @openapi
+ * /rental-bookings:
+ *   get:
+ *     summary: Get rental bookings (admin gets all, user gets own)
+ *     tags: [RentalBooking]
+ *     security:
+ *       - AuthorizationAuth: []
+ *     responses:
+ *       200:
+ *         description: Bookings fetched successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+rentalBookingRouter.get(
+  "/",
+  bookingRateLimiter,
+  auth,
+  rentalBookingController.getAllRentalBookings,
+);
+
+/**
+ * @openapi
+ * /rental-bookings/my:
+ *   get:
+ *     summary: Get current user's rental bookings
+ *     tags: [RentalBooking]
+ *     security:
+ *       - AuthorizationAuth: []
+ *     responses:
+ *       200:
+ *         description: User bookings fetched successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+rentalBookingRouter.get(
+  "/my",
+  bookingRateLimiter,
+  auth,
+  rentalBookingController.getMyRentalBookings,
+);
+
+/**
+ * @openapi
+ * /rental-bookings/{id}:
+ *   get:
+ *     summary: Get a rental booking by ID
+ *     tags: [RentalBooking]
+ *     security:
+ *       - AuthorizationAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Booking fetched successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Booking not found
+ *       500:
+ *         description: Internal server error
+ */
+rentalBookingRouter.get(
+  "/:id",
+  bookingRateLimiter,
+  auth,
+  rentalBookingController.getRentalBookingById,
+);
+
+/**
+ * @openapi
  * /rental-bookings/{id}:
  *   delete:
  *     summary: Soft-delete a rental booking

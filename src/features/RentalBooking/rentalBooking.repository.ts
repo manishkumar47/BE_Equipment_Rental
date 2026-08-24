@@ -40,6 +40,16 @@ export const deleteRentalBooking = async (bookingId: number) => {
   return deleted;
 };
 
+export const getRentalBookingsByUserId = async (userId: number) => {
+  return db.query.rentalBooking.findMany({
+    where: { userId, isDeleted: false },
+    with: {
+      user: true,
+      equipment: true,
+    },
+  });
+};
+
 export const getAllRentalBookings = async () => {
   return db.query.rentalBooking.findMany({
     where: { isDeleted: false },
