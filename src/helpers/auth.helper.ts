@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { errorResponse } from "./res.helper.js";
-import type { MyTokenPayload } from "../features/Users/user.type.js";
+import type { MyTokenPayload } from "../types/user.type.js";
 import { env } from "../config/env.js";
 
 export const authenticateRequest = async (
