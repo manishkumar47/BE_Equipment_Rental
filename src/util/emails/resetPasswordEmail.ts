@@ -2,6 +2,8 @@ import { transporter } from "../nodemailer.js";
 import { logger } from "../../core/pinoLogger.js";
 import { renderEmailTemplate } from "./templateRenderer.js";
 
+import { env } from "../../config/env.js";
+
 type UserSimple = { name: string; email: string };
 
 export const sendResetPassword = async ({
@@ -12,10 +14,7 @@ export const sendResetPassword = async ({
   token: string;
 }) => {
   try {
-    const base =
-      process.env.FRONTEND_URL ||
-      process.env.BASE_URL ||
-      "http://localhost:3000";
+    const base = env.FRONTEND_URL || "http://localhost:5173";
     const resetLink = `${base.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(
       token,
     )}`;

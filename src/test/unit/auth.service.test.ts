@@ -67,5 +67,24 @@ describe("Auth Service - Password Reset Edge Cases", () => {
       );
     });
   });
+
+  describe("loginUser error handling", () => {
+    it("should reject non-existent user with 404 AppError", async () => {
+      await expect(
+        authService.loginUser("nonexistent@example.com", "password123"),
+      ).rejects.toThrow("No user found with this email. Please sign up first.");
+    });
+  });
+
+  describe("requestPasswordReset error handling", () => {
+    it("should reject non-existent email with 404 AppError", async () => {
+      await expect(
+        authService.requestPasswordReset("nonexistent@example.com"),
+      ).rejects.toThrow(
+        "No account found with this email. Please check your email or sign up.",
+      );
+    });
+  });
 });
+
 

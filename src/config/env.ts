@@ -10,7 +10,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(8, "JWT_SECRET must be at least 8 characters"),
   JWT_EXPIRES_IN: z.string().default("7d"),
   PASSWORD_RESET_EXPIRES_MINUTES: z.coerce.number().default(60),
-  FRONTEND_URL: z.string().optional(),
+  FRONTEND_URL: z.string().default("http://localhost:5173"),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
 });

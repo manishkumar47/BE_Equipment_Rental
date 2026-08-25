@@ -46,6 +46,13 @@ export class Kernel {
   }
 
   public initRoutes(app: Express): void {
+    // Graceful redirect if browser visits backend reset-password endpoint directly
+    app.get("/reset-password", (req, res) => {
+      const queryStr = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+      const frontendUrl = env.FRONTEND_URL || "http://localhost:5173";
+      res.redirect(`${frontendUrl.replace(/\/$/, "")}/reset-password${queryStr}`);
+    });
+
     app.use("/users", userRouter);
     app.use("/auth", authRouter);
     app.use("/equipments", equipmentRouter);

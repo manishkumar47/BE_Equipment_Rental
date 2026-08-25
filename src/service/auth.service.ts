@@ -9,12 +9,29 @@ import { sendResetPassword } from "../util/emails/resetPasswordEmail.js";
 import { sendSignupOtpEmail } from "../util/emails/otpEmail.js";
 import { logger } from "../core/pinoLogger.js";
 
-export const findUserByEmailAndPassword = async (
-  email: string,
-  password: string,
-) => {
-  return authRepository.findUserByEmailAndPassword(email, password);
+export const loginUser = async (email: string, password: string) => {
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await authRepository.findUserByEmailSafe(normalizedEmail);
+
+  if (!user || user.isDeleted) {
+    throw new AppError(
+      404,
+      "No user found with this email. Please sign up first.",
+    );
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) {
+    throw new AppError(
+      401,
+      "Incorrect password. Please check your password and try again.",
+    );
+  }
+
+  return user;
 };
+
+export const findUserByEmailAndPassword = loginUser;
 
 export const createUserToken = async ({ userTokenPayload }: UserTokenProp) => {
   try {
@@ -27,55 +44,53 @@ export const createUserToken = async ({ userTokenPayload }: UserTokenProp) => {
 };
 
 export const findUserByEmail = async (email: string) => {
-  try {
-    return await authRepository.findUserByEmail(email);
-  } catch (error) {
+  const user = await authRepository.findUserByEmailSafe(email.toLowerCase().trim());
+  if (!user || user.isDeleted) {
     throw new AppError(404, "User not found");
   }
+  return user;
 };
 
 export const requestPasswordReset = async (email: string): Promise<void> => {
-  try {
-    const user = await authRepository.findUserByEmailSafe(email);
-    if (!user) {
-      // Return early without error to prevent user enumeration
-      return;
-    }
-
-    // Invalidate any previous unused reset tokens for this user
-    await authRepository.invalidateUserResetTokens(user.id);
-
-    // Create a new password reset record (15 minutes expiry)
-    const expiryAt = new Date(Date.now() + 15 * 60 * 1000);
-    const resetRecord = await authRepository.createPasswordResetRecord(
-      user.id,
-      expiryAt,
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await authRepository.findUserByEmailSafe(normalizedEmail);
+  if (!user || user.isDeleted) {
+    throw new AppError(
+      404,
+      "No account found with this email. Please check your email or sign up.",
     );
+  }
 
-    if (!resetRecord) {
-      logger.error(`Failed to create reset token record for ${email}`);
-      return;
-    }
+  // Invalidate any previous unused reset tokens for this user
+  await authRepository.invalidateUserResetTokens(user.id);
 
-    // Sign the reset token JWT containing the DB row id and user email (15 min expiry)
-    const token = jwt.sign(
-      { id: resetRecord.id, email: user.email },
-      env.JWT_SECRET,
-      { expiresIn: "15m" },
-    );
+  // Create a new password reset record (15 minutes expiry)
+  const expiryAt = new Date(Date.now() + 15 * 60 * 1000);
+  const resetRecord = await authRepository.createPasswordResetRecord(
+    user.id,
+    expiryAt,
+  );
 
-    // Send the email with the reset link
-    const sent = await sendResetPassword({
-      user: { name: user.name, email: user.email },
-      token,
-    });
+  if (!resetRecord) {
+    throw new AppError(500, "Failed to create reset token record.");
+  }
 
-    if (!sent) {
-      logger.error(`Reset email failed to dispatch for ${email}`);
-    }
-  } catch (error) {
-    logger.error({ err: error }, `Error during password reset request for ${email}`);
-    // Do not bubble up error details to prevent user enumeration
+  // Sign the reset token JWT containing the DB row id and user email (15 min expiry)
+  const token = jwt.sign(
+    { id: resetRecord.id, email: user.email },
+    env.JWT_SECRET,
+    { expiresIn: "15m" },
+  );
+
+  // Send the email with the reset link
+  const sent = await sendResetPassword({
+    user: { name: user.name, email: user.email },
+    token,
+  });
+
+  if (!sent) {
+    logger.error(`Reset email failed to dispatch for ${normalizedEmail}`);
+    throw new AppError(500, "Failed to send reset email. Please try again later.");
   }
 };
 

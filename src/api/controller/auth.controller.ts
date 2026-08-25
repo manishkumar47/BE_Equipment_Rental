@@ -11,13 +11,10 @@ export const loginUser = async (
   try {
     const { email, password } = req.body;
 
-    const user = await authService.findUserByEmailAndPassword(email, password);
-    if (!user) {
-      throw new AppError(404, "Can't find user");
-    }
+    const user = await authService.loginUser(email, password);
     const userTokenPayload = {
       id: user.id,
-      email,
+      email: user.email,
       role: user.role,
     };
 
@@ -27,7 +24,7 @@ export const loginUser = async (
     }
     return successResponse(res, {
       status: 200,
-      message: "User Found",
+      message: "Login successful",
       data: {
         id: user.id,
         name: user.name,
@@ -70,10 +67,9 @@ export const forgotPassword = async (
 
     await authService.requestPasswordReset(email);
 
-    // Always return generic success response to prevent email enumeration
     return successResponse(res, {
       status: 200,
-      message: "If that email exists, a reset link has been sent.",
+      message: "Password reset link has been sent to your email.",
     });
   } catch (error) {
     return next(error);
