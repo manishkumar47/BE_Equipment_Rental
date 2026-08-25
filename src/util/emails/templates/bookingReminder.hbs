@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rental Reminder</title>
+</head>
+
+<body
+  style="margin:0; padding:0; background-color:#f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+    style="background-color:#f4f4f5; padding: 40px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0"
+          style="background-color:#ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 0 40px;">
+              <div style="font-size: 20px; font-weight: 700; color: #111827; letter-spacing: -0.02em;">
+                EquipFlow
+              </div>
+            </td>
+          </tr>
+
+          <!-- Status badge + heading -->
+          <tr>
+            <td style="padding: 32px 40px 8px 40px;">
+              <div
+                style="display: inline-block; padding: 4px 10px; background-color: #fffbeb; border-radius: 6px; font-size: 12px; font-weight: 600; color: #d97706; letter-spacing: 0.02em; margin-bottom: 14px;">
+                RENTAL EXPIRING SOON
+              </div>
+              <h1
+                style="margin: 0 0 12px 0; font-size: 22px; font-weight: 700; color: #111827; letter-spacing: -0.02em;">
+                Time to return your equipment, {{user.name}}
+              </h1>
+              <p style="margin: 0; font-size: 15px; line-height: 24px; color: #4b5563;">
+                Your rental period is ending soon. Here are the details.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Time remaining highlight -->
+          <tr>
+            <td style="padding: 20px 40px 0 40px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                style="background-color: #fffbeb; border-radius: 10px; border: 1px solid #fef3c7;">
+                <tr>
+                  <td style="padding: 16px 24px; text-align: center;">
+                    <div
+                      style="font-size: 12px; color: #b45309; font-weight: 600; letter-spacing: 0.02em; margin-bottom: 4px;">
+                      TIME REMAINING</div>
+                    <div style="font-size: 20px; color: #92400e; font-weight: 700;">{{booking.remainingString}}</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Rental details card -->
+          <tr>
+            <td style="padding: 20px 40px 8px 40px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                style="background-color: #f9fafb; border-radius: 10px; border: 1px solid #f0f0f1;">
+                <tr>
+                  <td style="padding: 20px 24px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding: 8px 0; font-size: 13px; color: #9ca3af;">Equipment</td>
+                        <td
+                          style="padding: 8px 0; font-size: 14px; color: #111827; font-weight: 600; text-align: right;">
+                          {{equipment.name}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; font-size: 13px; color: #9ca3af; border-top: 1px solid #eef0f2;">
+                          Quantity</td>
+                        <td
+                          style="padding: 8px 0; font-size: 14px; color: #111827; font-weight: 600; text-align: right; border-top: 1px solid #eef0f2;">
+                          {{booking.quantity}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; font-size: 13px; color: #9ca3af; border-top: 1px solid #eef0f2;">
+                          Rented To</td>
+                        <td
+                          style="padding: 8px 0; font-size: 14px; color: #111827; font-weight: 600; text-align: right; border-top: 1px solid #eef0f2;">
+                          {{booking.rentTo}}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Closing line -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px;">
+              <p style="margin: 0; font-size: 15px; line-height: 24px; color: #4b5563;">
+                Please return the equipment on time to avoid late fees, or contact us if you'd like to extend your
+                booking.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px;">
+              <div style="border-top: 1px solid #e5e7eb;"></div>
+            </td>
+          </tr>
+
+          <!-- Footer note -->
+          <tr>
+            <td style="padding: 24px 40px 40px 40px;">
+              <p style="margin: 0; font-size: 13px; line-height: 20px; color: #9ca3af;">
+                Thank you for using EquipFlow.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+        <!-- Below-card footer -->
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="margin-top: 24px;">
+          <tr>
+            <td align="center">
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                &copy; {{currentYear}} EquipFlow. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+
+</html>

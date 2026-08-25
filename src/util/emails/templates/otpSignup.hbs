@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify your email address</title>
+</head>
+
+<body
+  style="margin:0; padding:0; background-color:#f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+    style="background-color:#f4f4f5; padding: 40px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0"
+          style="background-color:#ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 0 40px;">
+              <div style="font-size: 20px; font-weight: 700; color: #111827; letter-spacing: -0.02em;">
+                EquipFlow
+              </div>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px 40px 8px 40px;">
+              <h1
+                style="margin: 0 0 12px 0; font-size: 22px; font-weight: 700; color: #111827; letter-spacing: -0.02em;">
+                Verify your email address
+              </h1>
+              <p style="margin: 0 0 4px 0; font-size: 15px; line-height: 24px; color: #4b5563;">
+                Hi {{user.name}},
+              </p>
+              <p style="margin: 0; font-size: 15px; line-height: 24px; color: #4b5563;">
+                Thank you for signing up for EquipFlow. Use the 4-digit verification code below to complete your registration. This code expires in <strong>10 minutes</strong>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- OTP Code Card -->
+          <tr>
+            <td style="padding: 24px 40px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td align="center" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px;">
+                    <div style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #0f172a; font-family: monospace;">
+                      {{otp}}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Info / Warning -->
+          <tr>
+            <td style="padding: 0 40px 32px 40px;">
+              <p style="margin: 0; font-size: 13px; line-height: 20px; color: #64748b;">
+                Never share this code with anyone. EquipFlow staff will never ask you for your verification code.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 0 40px;">
+              <div style="border-top: 1px solid #e5e7eb;"></div>
+            </td>
+          </tr>
+
+          <!-- Footer note -->
+          <tr>
+            <td style="padding: 24px 40px 40px 40px;">
+              <p style="margin: 0; font-size: 13px; line-height: 20px; color: #9ca3af;">
+                If you didn't attempt to sign up for EquipFlow, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+        <!-- Below-card footer -->
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="margin-top: 24px;">
+          <tr>
+            <td align="center">
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                &copy; {{currentYear}} EquipFlow. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+
+</html>

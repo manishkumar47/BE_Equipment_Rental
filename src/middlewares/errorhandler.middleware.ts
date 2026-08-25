@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
-import { AppError } from "../utils/appError.js";
+import { AppError } from "../util/appError.js";
 import { errorResponse } from "../helpers/res.helper.js";
-import { logger } from "../services/pinoLogger.js";
+import { logger } from "../core/pinoLogger.js";
 
 export const errorHandler = (
   error: Error,
