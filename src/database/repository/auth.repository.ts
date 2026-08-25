@@ -1,8 +1,8 @@
 import db from "../../database/db-connection.js";
 import bcrypt from "bcrypt";
 import crypto from "node:crypto";
-import { and, eq } from "drizzle-orm";
-import { user, passwordReset } from "../../database/schema/schema.js";
+import { and, eq, desc, sql } from "drizzle-orm";
+import { user, passwordReset, otpVerification } from "../../database/schema/schema.js";
 
 export const findUserByEmailAndPassword = async (
   email: string,
@@ -124,3 +124,118 @@ export const updateUserPassword = async (email: string, password: string) => {
     .returning({ id: user.id, email: user.email, name: user.name });
   return updated;
 };
+
+export const invalidateUnusedOtpForEmail = async (email: string) => {
+  return db
+    .update(otpVerification)
+    .set({ used: true })
+    .where(
+      and(
+        eq(otpVerification.email, email),
+        eq(otpVerification.used, false),
+      ),
+    );
+};
+
+export const createOtpVerificationRecord = async ({
+  email,
+  otpHash,
+  payload,
+  expiresAt,
+}: {
+  email: string;
+  otpHash: string;
+  payload: Record<string, any>;
+  expiresAt: Date;
+}) => {
+  const [created] = await db
+    .insert(otpVerification)
+    .values({
+      email,
+      otpHash,
+      payload,
+      expiresAt,
+      used: false,
+      attempts: 0,
+    })
+    .returning();
+  return created;
+};
+
+export const findLatestUnusedOtpByEmail = async (email: string) => {
+  const [record] = await db
+    .select()
+    .from(otpVerification)
+    .where(
+      and(
+        eq(otpVerification.email, email),
+        eq(otpVerification.used, false),
+      ),
+    )
+    .orderBy(desc(otpVerification.createdAt))
+    .limit(1);
+  return record || null;
+};
+
+export const findLatestOtpByEmail = async (email: string) => {
+  const [record] = await db
+    .select()
+    .from(otpVerification)
+    .where(eq(otpVerification.email, email))
+    .orderBy(desc(otpVerification.createdAt))
+    .limit(1);
+  return record || null;
+};
+
+export const incrementOtpAttempts = async (otpId: number) => {
+  return db
+    .update(otpVerification)
+    .set({
+      attempts: sql`${otpVerification.attempts} + 1`,
+    })
+    .where(eq(otpVerification.id, otpId));
+};
+
+export const executeVerifyAndCreateUserTransaction = async ({
+  otpId,
+  name,
+  email,
+  hashedPassword,
+}: {
+  otpId: number;
+  name: string;
+  email: string;
+  hashedPassword: string;
+}) => {
+  return db.transaction(async (tx) => {
+    // 1. Create the user
+    const [createdUser] = await tx
+      .insert(user)
+      .values({
+        name,
+        email,
+        password: hashedPassword,
+        role: "USER",
+      })
+      .returning({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      });
+
+    if (!createdUser) {
+      throw new Error("Failed to create user account.");
+    }
+
+    // 2. Mark OTP verification as used
+    await tx
+      .update(otpVerification)
+      .set({ used: true })
+      .where(eq(otpVerification.id, otpId));
+
+    return createdUser;
+  });
+};
+
+

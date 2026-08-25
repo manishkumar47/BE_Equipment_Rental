@@ -79,3 +79,59 @@ export const forgotPassword = async (
     return next(error);
   }
 };
+
+export const signupInitiate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { name, email, password } = req.body;
+    const result = await authService.initiateSignup({ name, email, password });
+
+    return successResponse(res, {
+      status: 200,
+      message: result.message,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const signupResend = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { email } = req.body;
+    const result = await authService.resendSignupOtp(email);
+
+    return successResponse(res, {
+      status: 200,
+      message: result.message,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const signupVerify = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { email, otp } = req.body;
+    const userSession = await authService.verifySignupOtp({ email, otp });
+
+    return successResponse(res, {
+      status: 201,
+      message: "Account created and verified successfully",
+      data: userSession,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+

@@ -54,4 +54,18 @@ describe("Auth Service - Password Reset Edge Cases", () => {
       ).rejects.toThrow("Invalid or expired reset token");
     });
   });
+
+  describe("verifySignupOtp guards", () => {
+    it("should reject non-existent or empty OTP sessions", async () => {
+      await expect(
+        authService.verifySignupOtp({
+          email: "nonexistent@example.com",
+          otp: "1234",
+        }),
+      ).rejects.toThrow(
+        "Invalid or expired verification session. Please sign up again.",
+      );
+    });
+  });
 });
+
