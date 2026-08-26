@@ -13,6 +13,7 @@ import authRouter from "../api/routes/auth.route.js";
 import equipmentRouter from "../api/routes/equipment.route.js";
 import rentalBookingRouter from "../api/routes/rentalBooking.route.js";
 import categoryRouter from "../api/routes/category.route.js";
+import { returnRouter, adminReturnRouter } from "../api/routes/return.route.js";
 
 import { errorHandler } from "../middlewares/errorhandler.middleware.js";
 import initCronJobs from "../cron/cron.scheduler.js";
@@ -58,6 +59,8 @@ export class Kernel {
     app.use("/equipments", equipmentRouter);
     app.use("/rental-bookings", rentalBookingRouter);
     app.use("/category", categoryRouter);
+    app.use("/rentals", returnRouter);
+    app.use("/admin/rentals", adminReturnRouter);
   }
 
   public setupSwagger(app: Express): void {

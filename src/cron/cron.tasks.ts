@@ -41,9 +41,9 @@ export const sendReminderEmail = async () => {
       if (minutesRemaining <= targetBufferInMins) {
         logger.info(
           `🔔 Triggering Email for Booking ID ${rentalBooking.id}. ` +
-            `Total Duration: ${(totalDurationInMins / 60).toFixed(1)}h | ` +
-            `Target Buffer: ${(targetBufferInMins / 60).toFixed(1)}h | ` +
-            `Time Left: ${(minutesRemaining / 60).toFixed(2)}h`,
+          `Total Duration: ${(totalDurationInMins / 60).toFixed(1)}h | ` +
+          `Target Buffer: ${(targetBufferInMins / 60).toFixed(1)}h | ` +
+          `Time Left: ${(minutesRemaining / 60).toFixed(2)}h`,
         );
 
         const reminderSent = await sendBookingReminder({

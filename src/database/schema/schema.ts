@@ -75,6 +75,12 @@ export const passwordReset = pgTable(
   ],
 );
 
+export const bookingStatus = pgEnum("booking_status", [
+  "active",
+  "return_requested",
+  "returned",
+]);
+
 export const rentalBooking = pgTable(
   "rental_bookings",
   {
@@ -94,6 +100,12 @@ export const rentalBooking = pgTable(
         onUpdate: "cascade",
       }),
     quantity: integer("quantity").notNull(),
+    status: bookingStatus("status").default("active").notNull(),
+    returnRequestedAt: timestamp("return_requested_at", { precision: 3 }),
+    returnedAt: timestamp("returned_at", { precision: 3 }),
+    returnCondition: text("return_condition"), // 'good' | 'damaged' | 'lost'
+    conditionNotes: text("condition_notes"),
+    rejectionReason: text("rejection_reason"), // set when admin rejects return request
     deletedAt: timestamp("deleted_at", { precision: 3 }),
     isDeleted: boolean("is_deleted").default(false).notNull(),
     isReminderSent: boolean("is_reminder_sent").default(false).notNull(),
@@ -101,6 +113,7 @@ export const rentalBooking = pgTable(
   (table) => [
     index("rental_bookings_user_id_idx").on(table.userId),
     index("rental_bookings_equipment_id_idx").on(table.equipmentId),
+    index("rental_bookings_status_idx").on(table.status, table.isDeleted),
     index("rental_bookings_reminder_idx").on(
       table.isReminderSent,
       table.isDeleted,
@@ -133,5 +146,39 @@ export const otpVerification = pgTable(
   },
   (table) => [
     index("otp_verifications_email_idx").on(table.email, table.used),
+  ],
+);
+
+export const fineStatus = pgEnum("fine_status", ["unpaid", "paid", "waived"]);
+
+export const fine = pgTable(
+  "fines",
+  {
+    id: serial("id").primaryKey(),
+    rentalBookingId: integer("rental_booking_id")
+      .notNull()
+      .references(() => rentalBooking.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => user.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    amount: doublePrecision("amount").notNull(),
+    daysLate: integer("days_late").default(0).notNull(),
+    reason: text("reason"), // e.g. 'late_return' | 'damaged' | 'lost' — free text or tie to returnCondition
+    status: fineStatus("status").default("unpaid").notNull(),
+    createdAt: timestamp("created_at", { precision: 3 })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    resolvedAt: timestamp("resolved_at", { precision: 3 }), // when marked paid/waived
+  },
+  (table) => [
+    index("fines_user_id_idx").on(table.userId),
+    index("fines_rental_booking_id_idx").on(table.rentalBookingId),
+    index("fines_status_idx").on(table.status),
   ],
 );
