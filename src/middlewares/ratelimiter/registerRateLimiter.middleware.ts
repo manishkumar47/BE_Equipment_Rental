@@ -5,6 +5,7 @@ const registerRateLimiter = rateLimit({
   limit: 10,
   legacyHeaders: false,
   standardHeaders: "draft-8",
+  skip: () => process.env.NODE_ENV === "test",
   message: {
     success: false,
     message: "Too many attempts. Please try again after 5 minutes.",

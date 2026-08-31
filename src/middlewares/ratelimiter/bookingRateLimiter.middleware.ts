@@ -5,6 +5,7 @@ const bookingRateLimiter = rateLimit({
   limit: 50,
   legacyHeaders: false,
   standardHeaders: "draft-8",
+  skip: () => process.env.NODE_ENV === "test",
   message: {
     success: false,
     message: "Too many booking requests. Please try again after 15 minutes.",

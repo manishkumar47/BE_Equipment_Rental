@@ -6,6 +6,7 @@ const signupInitiateRateLimiter = rateLimit({
   limit: 10, // max 10 initiate requests per hour per IP + email
   legacyHeaders: false,
   standardHeaders: "draft-8",
+  skip: () => process.env.NODE_ENV === "test",
   keyGenerator: (req: Request) => {
     const email = req.body?.email
       ? String(req.body.email).toLowerCase().trim()

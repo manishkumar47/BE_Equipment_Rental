@@ -2,6 +2,11 @@ node_modules
 /dist
 .env
 .env.local
+.env.test
 
 /generated/prisma
 temp.txt
+
+/playwright-report
+/test-results
+/coverage
