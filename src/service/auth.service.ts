@@ -160,8 +160,23 @@ export const initiateSignup = async ({
     throw new AppError(409, "User already exists with this email.");
   }
 
+  // 1.5 — NEW: Enforce 60-second cooldown before allowing a new OTP request
+  const lastOtp = await authRepository.findLatestUnusedOtpByEmail(normalizedEmail);
+  if (lastOtp) {
+    const timeSinceCreated = Date.now() - new Date(lastOtp.createdAt).getTime();
+    const cooldownMs = 60 * 1000;
+    if (timeSinceCreated < cooldownMs) {
+      const retryAfterSeconds = Math.ceil((cooldownMs - timeSinceCreated) / 1000);
+      throw new AppError(
+        429,
+        `Please wait ${retryAfterSeconds} seconds before requesting another code.`,
+      );
+    }
+  }
+
   // 2. Hash password upfront for storage in the pending payload
   const hashedPassword = await bcrypt.hash(password, 10);
+
 
   // 3. Invalidate any previous unused OTPs for this email (allows clean retry/restart)
   await authRepository.invalidateUnusedOtpForEmail(normalizedEmail);
@@ -205,15 +220,15 @@ export const resendSignupOtp = async (email: string) => {
   const normalizedEmail = email.toLowerCase().trim();
 
   // 1. Enforce 2-minute cooldown between OTP requests for the same email
-  const lastOtp = await authRepository.findLatestOtpByEmail(normalizedEmail);
+  const lastOtp = await authRepository.findLatestUnusedOtpByEmail(normalizedEmail);
   if (lastOtp) {
     const timeSinceCreated = Date.now() - new Date(lastOtp.createdAt).getTime();
-    const cooldownMs = 2 * 60 * 1000;
+    const cooldownMs = 60 * 1000;
     if (timeSinceCreated < cooldownMs) {
-      const waitSeconds = Math.ceil((cooldownMs - timeSinceCreated) / 1000);
+      const retryAfterSeconds = Math.ceil((cooldownMs - timeSinceCreated) / 1000);
       throw new AppError(
         429,
-        `Please wait ${waitSeconds} seconds before requesting a new code.`,
+        `Please wait ${retryAfterSeconds} seconds before requesting a new code.`,
       );
     }
   }

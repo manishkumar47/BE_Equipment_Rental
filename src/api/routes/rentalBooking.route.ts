@@ -7,51 +7,6 @@ import * as rentalBookingController from "../controller/rentalBooking.controller
 import { auth } from "../../middlewares/auth.middleware.js";
 const rentalBookingRouter = Router();
 
-/**
- * @openapi
- * /rental-bookings:
- *   post:
- *     summary: Create a rental booking
- *     tags: [RentalBooking]
- *     security:
- *       - AuthorizationAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - rentFrom
- *               - rentTo
- *               - equipmentId
- *             properties:
- *               rentFrom:
- *                 type: string
- *                 format: date-time
- *                 example: 2026-08-10T10:00:00.000Z
- *               rentTo:
- *                 type: string
- *                 format: date-time
- *                 example: 2026-08-12T10:00:00.000Z
- *               quantity:
- *                 type: integer
- *                 example: 2
- *               equipmentId:
- *                 type: integer
- *                 example: 2
- *     responses:
- *       201:
- *         description: Rental booking created successfully
- *       400:
- *         description: Invalid request payload
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- *       500:
- *         description: Internal server error
- */
 rentalBookingRouter.post(
   "/",
   bookingRateLimiter,
@@ -60,22 +15,6 @@ rentalBookingRouter.post(
   rentalBookingController.createRentalBooking,
 );
 
-/**
- * @openapi
- * /rental-bookings:
- *   get:
- *     summary: Get rental bookings (admin gets all, user gets own)
- *     tags: [RentalBooking]
- *     security:
- *       - AuthorizationAuth: []
- *     responses:
- *       200:
- *         description: Bookings fetched successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Internal server error
- */
 rentalBookingRouter.get(
   "/",
   bookingRateLimiter,
@@ -83,22 +22,6 @@ rentalBookingRouter.get(
   rentalBookingController.getAllRentalBookings,
 );
 
-/**
- * @openapi
- * /rental-bookings/my:
- *   get:
- *     summary: Get current user's rental bookings
- *     tags: [RentalBooking]
- *     security:
- *       - AuthorizationAuth: []
- *     responses:
- *       200:
- *         description: User bookings fetched successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Internal server error
- */
 rentalBookingRouter.get(
   "/my",
   bookingRateLimiter,
@@ -106,64 +29,12 @@ rentalBookingRouter.get(
   rentalBookingController.getMyRentalBookings,
 );
 
-/**
- * @openapi
- * /rental-bookings/{id}:
- *   get:
- *     summary: Get a rental booking by ID
- *     tags: [RentalBooking]
- *     security:
- *       - AuthorizationAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Booking fetched successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- *       404:
- *         description: Booking not found
- *       500:
- *         description: Internal server error
- */
 rentalBookingRouter.get(
   "/:id",
   auth,
   rentalBookingController.getRentalBookingById,
 );
 
-/**
- * @openapi
- * /rental-bookings/{id}:
- *   delete:
- *     summary: Soft-delete a rental booking
- *     tags: [RentalBooking]
- *     security:
- *       - AuthorizationAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Booking soft-deleted successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- *       404:
- *         description: Booking not found
- *       500:
- *         description: Internal server error
- */
 rentalBookingRouter.delete(
   "/:id",
   auth,

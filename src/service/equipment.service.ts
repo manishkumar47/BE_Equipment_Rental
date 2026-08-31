@@ -31,11 +31,6 @@ export const getAllEquipments = async () => {
   return equipments;
 };
 
-// export const createBulkEquipments = async (equipments) => {
-//   const data = await equipmentRepository.createBulkEquipments(equipments);
-//   if (!data) {
-//     logger.error("NO DATA !");
-//     return;
-//   }
-//   return data;
-// };
+export const bulkCreateEquipments = async (data: CreateEquipmentType[]) => {
+  return equipmentRepository.bulkCreateEquipments(data);
+};

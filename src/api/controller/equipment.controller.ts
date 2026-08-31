@@ -83,8 +83,18 @@ export const updateEquipment = async (
 ) => {
   try {
     const equipmentId = Number(req.params.id);
-    const body: UpdateEquipmentType = req.body;
-    const equipment = await equipmentService.updateEquipment(equipmentId, body);
+    const body = req.body;
+    const updateData: UpdateEquipmentType = {
+      name: body.name,
+      description: body.description,
+      quantity: body.quantity,
+      price: body.price,
+      imageUrl: body.imageUrl,
+      ...(body.categoryId !== undefined && {
+        equipmentCategoryId: Number(body.categoryId),
+      }),
+    };
+    const equipment = await equipmentService.updateEquipment(equipmentId, updateData);
 
     return successResponse(res, {
       status: 200,
@@ -95,6 +105,7 @@ export const updateEquipment = async (
     next(error);
   }
 };
+
 
 export const deleteEquipment = async (
   req: Request,
@@ -113,3 +124,40 @@ export const deleteEquipment = async (
     next(error);
   }
 };
+
+export const bulkCreateEquipments = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const items: Array<{
+      name: string;
+      description?: string;
+      price: number;
+      quantity?: number;
+      imageUrl?: string;
+      categoryId: number;
+    }> = req.body.items;
+
+    const equipmentsToCreate: CreateEquipmentType[] = items.map((item) => ({
+      name: item.name,
+      description: item.description ?? null,
+      price: item.price,
+      quantity: item.quantity ?? 0,
+      imageUrl: item.imageUrl ?? null,
+      equipmentCategoryId: item.categoryId,
+    }));
+
+    const created = await equipmentService.bulkCreateEquipments(equipmentsToCreate);
+
+    return successResponse(res, {
+      status: 201,
+      message: `${created.length} equipment item(s) created successfully!`,
+      data: created,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

@@ -1,0 +1,187 @@
+/rentals/{bookingId}/return-request:
+  post:
+    summary: Request return of a rented equipment
+    description: >
+      User requests to return a rental booking. Sets status to 'return_requested'.
+      Only allowed if booking is currently 'active' and belongs to the authenticated user.
+      Does NOT restore equipment stock or calculate fines — those happen at admin confirmation.
+    tags: [Returns]
+    security:
+      - AuthorizationAuth: []
+    parameters:
+      - in: path
+        name: bookingId
+        required: true
+        schema:
+          type: integer
+        description: The rental booking ID
+    responses:
+      200:
+        description: Return request submitted successfully
+      400:
+        description: Invalid booking ID
+      401:
+        description: Unauthorized
+      403:
+        description: Not authorized (booking doesn't belong to this user)
+      404:
+        description: Booking not found
+      409:
+        description: Booking is not in a valid state for return request
+      500:
+        description: Internal server error
+
+/admin/rentals/return-requests:
+  get:
+    summary: Get pending return requests (admin only, paginated)
+    description: >
+      Returns bookings where status is 'return_requested', with user and
+      equipment details. Supports pagination via query params.
+    tags: [Admin Returns]
+    security:
+      - AuthorizationAuth: []
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number (1-indexed)
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+          maximum: 100
+        description: Number of results per page
+    responses:
+      200:
+        description: Pending return requests fetched
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                message:
+                  type: string
+                data:
+                  type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        type: object
+                    total:
+                      type: integer
+                    page:
+                      type: integer
+                    limit:
+                      type: integer
+                    totalPages:
+                      type: integer
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden (admin only)
+      500:
+        description: Internal server error
+
+/admin/rentals/{bookingId}/confirm-return:
+  post:
+    summary: Confirm equipment return (admin only)
+    description: >
+      Admin confirms the return of equipment, assessing its condition.
+      Calculates fines (late fee + damage fee or replacement cost) and
+      restores stock atomically in a single transaction.
+      Late fee: ₹100/day (days 1-7), ₹200/day (days 8-14), capped at day 14.
+      Damage fee: admin-entered amount, max 1.5× equipment price.
+      Replacement cost: full equipment price × quantity, only for 'lost'.
+    tags: [Admin Returns]
+    security:
+      - AuthorizationAuth: []
+    parameters:
+      - in: path
+        name: bookingId
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - condition
+            properties:
+              condition:
+                type: string
+                enum: [good, damaged, lost]
+                example: damaged
+              conditionNotes:
+                type: string
+                example: Minor scratches on surface
+              damageFee:
+                type: number
+                example: 500
+                description: Required when condition is 'damaged'. Must be ≤ 1.5× equipment price.
+    responses:
+      200:
+        description: Return confirmed with fine breakdown
+      400:
+        description: Invalid request (bad condition, damageFee exceeds cap, etc.)
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden (admin only)
+      404:
+        description: Booking not found
+      409:
+        description: Already processed (race condition)
+      500:
+        description: Internal server error
+
+/admin/rentals/{bookingId}/reject-return:
+  post:
+    summary: Reject a return request (admin only)
+    description: >
+      Admin rejects the return request. Booking status reverts to 'active'.
+      A rejection reason is required and stored for audit.
+    tags: [Admin Returns]
+    security:
+      - AuthorizationAuth: []
+    parameters:
+      - in: path
+        name: bookingId
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - rejectionReason
+            properties:
+              rejectionReason:
+                type: string
+                example: Wrong equipment returned, please bring the correct item.
+    responses:
+      200:
+        description: Return request rejected
+      400:
+        description: Invalid request (missing reason)
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden (admin only)
+      404:
+        description: Booking not found
+      409:
+        description: Already processed
+      500:
+        description: Internal server error

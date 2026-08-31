@@ -44,3 +44,11 @@ export const getAllEquipments = async () => {
     where: { isDeleted: false },
   });
 };
+
+export const bulkCreateEquipments = async (data: CreateEquipmentType[]) => {
+  const rows = await db
+    .insert(equipment)
+    .values(data as (typeof equipment.$inferInsert)[])
+    .returning();
+  return rows;
+};

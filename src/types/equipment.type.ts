@@ -3,6 +3,8 @@ export interface CreateEquipmentType {
   description?: string | null;
   quantity?: number;
   price: number;
+  imageUrl?: string | null;
+  equipmentCategoryId: number;
 }
 
 export interface UpdateEquipmentType {
@@ -10,4 +12,6 @@ export interface UpdateEquipmentType {
   description?: string | null;
   quantity?: number;
   price?: number;
+  imageUrl?: string | null;
+  equipmentCategoryId?: number;
 }
