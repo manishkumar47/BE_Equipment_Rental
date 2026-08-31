@@ -7,10 +7,12 @@ export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  retries: process.env.CI ? 1 : 1,
+  // Capped everywhere: all specs share one server + one remote (Neon) DB
+  // connection pool, so uncapped parallelism causes contention timeouts.
+  workers: 4,
   reporter: [["list"]],
-  timeout: 30_000,
+  timeout: 45_000,
   use: {
     baseURL: BASE_URL,
   },

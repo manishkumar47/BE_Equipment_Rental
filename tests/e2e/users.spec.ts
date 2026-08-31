@@ -35,7 +35,7 @@ test.describe("Users API", () => {
 
   test("admin can create, fetch, promote, and soft-delete a user", async ({ request }) => {
     const adminToken = await login(request, mockUsers.admin.email, mockUsers.admin.password);
-    const email = `created-${Date.now()}@equipflow.test`;
+    const email = `created-${Date.now()}@yopmail.com`;
 
     const createRes = await request.post("/users", {
       headers: authHeader(adminToken),

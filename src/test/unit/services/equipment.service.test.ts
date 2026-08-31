@@ -1,8 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../../../database/repository/equipment.repository.js");
+vi.mock("../../../service/equipmentItem.service.js");
 
 import * as equipmentRepository from "../../../database/repository/equipment.repository.js";
+import * as equipmentItemService from "../../../service/equipmentItem.service.js";
 import * as equipmentService from "../../../service/equipment.service.js";
 
 describe("equipment.service", () => {
@@ -59,5 +61,57 @@ describe("equipment.service", () => {
 
     await expect(equipmentService.bulkCreateEquipments(items)).resolves.toEqual(created);
     expect(equipmentRepository.bulkCreateEquipments).toHaveBeenCalledWith(items);
+  });
+
+  describe("getAllEquipmentsWithItemCounts", () => {
+    it("annotates each equipment with its item-derived counts", async () => {
+      const rows = [{ id: 1, name: "Drill" }, { id: 2, name: "Ladder" }];
+      vi.mocked(equipmentRepository.getAllEquipments).mockResolvedValue(rows as any);
+      vi.mocked(equipmentItemService.getItemCountsMap).mockResolvedValue(
+        new Map([
+          [1, { totalItemCount: 5, availableItemCount: 3 }],
+          [2, { totalItemCount: 2, availableItemCount: 2 }],
+        ]),
+      );
+
+      const result = await equipmentService.getAllEquipmentsWithItemCounts();
+
+      expect(equipmentItemService.getItemCountsMap).toHaveBeenCalledWith([1, 2]);
+      expect(result).toEqual([
+        { id: 1, name: "Drill", totalItemCount: 5, availableItemCount: 3 },
+        { id: 2, name: "Ladder", totalItemCount: 2, availableItemCount: 2 },
+      ]);
+    });
+
+    it("defaults counts to 0 for equipment with no item rows", async () => {
+      vi.mocked(equipmentRepository.getAllEquipments).mockResolvedValue([{ id: 9, name: "New" }] as any);
+      vi.mocked(equipmentItemService.getItemCountsMap).mockResolvedValue(new Map());
+
+      const result = await equipmentService.getAllEquipmentsWithItemCounts();
+
+      expect(result).toEqual([{ id: 9, name: "New", totalItemCount: 0, availableItemCount: 0 }]);
+    });
+  });
+
+  describe("getEquipmentByIdWithItemCounts", () => {
+    it("returns undefined without querying counts when the equipment does not exist", async () => {
+      vi.mocked(equipmentRepository.getEquipmentFromId).mockResolvedValue(undefined as any);
+
+      await expect(equipmentService.getEquipmentByIdWithItemCounts(999)).resolves.toBeUndefined();
+      expect(equipmentItemService.getItemCounts).not.toHaveBeenCalled();
+    });
+
+    it("merges item counts into the equipment when found", async () => {
+      vi.mocked(equipmentRepository.getEquipmentFromId).mockResolvedValue({ id: 1, name: "Drill" } as any);
+      vi.mocked(equipmentItemService.getItemCounts).mockResolvedValue({
+        totalItemCount: 4,
+        availableItemCount: 1,
+      });
+
+      const result = await equipmentService.getEquipmentByIdWithItemCounts(1);
+
+      expect(equipmentItemService.getItemCounts).toHaveBeenCalledWith(1);
+      expect(result).toEqual({ id: 1, name: "Drill", totalItemCount: 4, availableItemCount: 1 });
+    });
   });
 });

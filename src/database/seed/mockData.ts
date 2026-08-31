@@ -30,19 +30,19 @@ export const mockEquipment = [
 export const mockUsers = {
   admin: {
     name: "E2E Admin",
-    email: "e2e.admin@equipflow.test",
+    email: "e2e.admin@yopmail.com",
     password: "AdminPass123!",
     role: "ADMIN" as const,
   },
   user1: {
     name: "E2E User One",
-    email: "e2e.user1@equipflow.test",
+    email: "e2e.user1@yopmail.com",
     password: "UserPass123!",
     role: "USER" as const,
   },
   user2: {
     name: "E2E User Two",
-    email: "e2e.user2@equipflow.test",
+    email: "e2e.user2@yopmail.com",
     password: "UserPass123!",
     role: "USER" as const,
   },

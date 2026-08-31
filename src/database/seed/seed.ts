@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import db from "../db-connection.js";
 import { equipment, equipmentCategory, user } from "../schema/schema.js";
 import { mockCategories, mockEquipment, mockUsers } from "./mockData.js";
+import { backfillItemsForEquipment } from "../scripts/backfillEquipmentItems.js";
 
 /**
  * Seeds the TEST database branch only. Truncates all app tables first, so this
@@ -26,6 +27,7 @@ async function main() {
       password_resets,
       otp_verifications,
       rental_bookings,
+      equipment_items,
       equipment,
       equipment_category,
       users
@@ -39,22 +41,31 @@ async function main() {
 
   const categoryIdByName = new Map(insertedCategories.map((c) => [c.name, c.id]));
 
-  await db.insert(equipment).values(
-    mockEquipment.map((item) => {
-      const equipmentCategoryId = categoryIdByName.get(item.categoryName);
-      if (!equipmentCategoryId) {
-        throw new Error(`Seed error: unknown category '${item.categoryName}'`);
-      }
-      return {
-        name: item.name,
-        description: item.description,
-        quantity: item.quantity,
-        price: item.price,
-        imageUrl: item.imageUrl,
-        equipmentCategoryId,
-      };
-    }),
-  );
+  const insertedEquipment = await db
+    .insert(equipment)
+    .values(
+      mockEquipment.map((item) => {
+        const equipmentCategoryId = categoryIdByName.get(item.categoryName);
+        if (!equipmentCategoryId) {
+          throw new Error(`Seed error: unknown category '${item.categoryName}'`);
+        }
+        return {
+          name: item.name,
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price,
+          imageUrl: item.imageUrl,
+          equipmentCategoryId,
+        };
+      }),
+    )
+    .returning({ id: equipment.id, name: equipment.name, quantity: equipment.quantity });
+
+  let totalItemsCreated = 0;
+  for (const row of insertedEquipment) {
+    const result = await backfillItemsForEquipment(row);
+    totalItemsCreated += result.created;
+  }
 
   const usersToInsert = await Promise.all(
     Object.values(mockUsers).map(async (u) => ({
@@ -68,7 +79,7 @@ async function main() {
   await db.insert(user).values(usersToInsert);
 
   console.log(
-    `Seeded ${insertedCategories.length} categories, ${mockEquipment.length} equipment items, ${usersToInsert.length} users.`,
+    `Seeded ${insertedCategories.length} categories, ${mockEquipment.length} equipment types (${totalItemsCreated} equipment_item rows), ${usersToInsert.length} users.`,
   );
   process.exit(0);
 }

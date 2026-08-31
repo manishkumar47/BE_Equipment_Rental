@@ -453,8 +453,11 @@ describe("auth.service", () => {
         otpHash: await bcrypt.hash("1234", 10),
         payload: { name: "Alice", hashedPassword: "hash" },
       } as any);
+      // Matches the real shape thrown by drizzle-orm (DrizzleQueryError nests
+      // the original pg error under `.cause`, not at the top level).
       vi.mocked(authRepository.executeVerifyAndCreateUserTransaction).mockRejectedValue({
-        code: "23505",
+        name: "DrizzleQueryError",
+        cause: { code: "23505" },
       });
 
       await expect(

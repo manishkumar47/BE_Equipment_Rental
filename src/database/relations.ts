@@ -16,6 +16,15 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.equipment.equipmentCategoryId,
       to: r.equipmentCategory.id,
     }),
+    equipmentItems: r.many.equipmentItem(),
+  },
+
+  // EQUIPMENT ITEM relationships
+  equipmentItem: {
+    equipment: r.one.equipment({
+      from: r.equipmentItem.equipmentId,
+      to: r.equipment.id,
+    }),
   },
 
   // 3. RENTAL BOOKING relationships

@@ -40,7 +40,7 @@ export const getAllEquipments = async (
   next: NextFunction,
 ) => {
   try {
-    const equipments = await equipmentService.getAllEquipments();
+    const equipments = await equipmentService.getAllEquipmentsWithItemCounts();
     return successResponse(res, {
       status: 200,
       message: "Equipment fetched!",
@@ -58,7 +58,7 @@ export const getEquipmentById = async (
 ) => {
   try {
     const equipmentId = Number(req.params.id);
-    const equipment = await equipmentService.getEquipmentFromId(equipmentId);
+    const equipment = await equipmentService.getEquipmentByIdWithItemCounts(equipmentId);
     if (!equipment) {
       return res.status(404).json({
         success: false,

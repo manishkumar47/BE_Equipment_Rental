@@ -2,12 +2,15 @@ import { Router } from "express";
 import { validate } from "../../middlewares/validate.middleware.js";
 import { equipmentSchema } from "../validators/equipment.schema.js";
 import * as equipmentController from "../controller/equipment.controller.js";
+import { equipmentItemRouter } from "./equipmentItem.route.js";
 
 
 import generalRateLimiter from "../../middlewares/ratelimiter/generalRateLimiter.middleware.js";
 import { isAdmin } from "../../middlewares/auth.middleware.js";
 
 const equipmentRouter = Router();
+
+equipmentRouter.use("/:id/items", equipmentItemRouter);
 equipmentRouter.post(
   "/",
   isAdmin,

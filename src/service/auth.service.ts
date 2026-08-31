@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import crypto from "node:crypto";
 import { AppError } from "../util/appError.js";
+import { isUniqueConstraintViolation } from "../util/dbErrors.js";
 import type { UserTokenProp } from "../types/user.type.js";
 import { env } from "../config/env.js";
 import { sendResetPassword } from "../util/emails/resetPasswordEmail.js";
@@ -356,7 +357,7 @@ export const verifySignupOtp = async ({
       hashedPassword: payload.hashedPassword,
     });
   } catch (err: any) {
-    if (err.code === "23505" || err.message?.includes("unique")) {
+    if (isUniqueConstraintViolation(err) || err.message?.includes("unique")) {
       throw new AppError(409, "User already exists with this email.");
     }
     throw new AppError(500, err.message || "Failed to complete user registration.");

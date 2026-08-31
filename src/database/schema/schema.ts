@@ -35,6 +35,41 @@ export const equipment = pgTable("equipment", {
     }),
 });
 
+export const equipmentItemStatus = pgEnum("equipment_item_status", [
+  "available",
+  "rented",
+  "under_repair",
+  "damaged",
+  "lost",
+  "retired",
+]);
+
+export const equipmentItem = pgTable(
+  "equipment_items",
+  {
+    id: serial("id").primaryKey(),
+    equipmentId: integer("equipment_id")
+      .notNull()
+      .references(() => equipment.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    serialNumber: text("serial_number").notNull(),
+    status: equipmentItemStatus("status").default("available").notNull(),
+    conditionNotes: text("condition_notes"),
+    createdAt: timestamp("created_at", { precision: 3 })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { precision: 3 }),
+    isDeleted: boolean("is_deleted").default(false).notNull(),
+  },
+  (table) => [
+    uniqueIndex("equipment_items_serial_number_key").on(table.serialNumber),
+    index("equipment_items_equipment_id_idx").on(table.equipmentId),
+    index("equipment_items_status_idx").on(table.status, table.isDeleted),
+  ],
+);
+
 export const user = pgTable(
   "users",
   {

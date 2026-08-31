@@ -21,7 +21,7 @@ test.describe("Auth API", () => {
 
   test("POST /auth/login fails for a non-existent email", async ({ request }) => {
     const res = await request.post("/auth/login", {
-      data: { email: "nobody-e2e@equipflow.test", password: "whatever123" },
+      data: { email: "nobody-e2e@yopmail.com", password: "whatever123" },
     });
     expect(res.status()).toBe(404);
   });
@@ -40,7 +40,7 @@ test.describe("Auth API", () => {
 
   test("POST /auth/forgot-password 404s for a non-existent account", async ({ request }) => {
     const res = await request.post("/auth/forgot-password", {
-      data: { email: "nobody-e2e@equipflow.test" },
+      data: { email: "nobody-e2e@yopmail.com" },
     });
     expect(res.status()).toBe(404);
   });
@@ -49,7 +49,7 @@ test.describe("Auth API", () => {
     const res = await request.post("/auth/signup/initiate", {
       data: {
         name: "New Signup",
-        email: `new-signup-${Date.now()}@equipflow.test`,
+        email: `new-signup-${Date.now()}@yopmail.com`,
         password: "longenough1",
       },
     });
@@ -65,14 +65,14 @@ test.describe("Auth API", () => {
 
   test("POST /auth/signup/resend 400s when there is no pending signup", async ({ request }) => {
     const res = await request.post("/auth/signup/resend", {
-      data: { email: `no-pending-${Date.now()}@equipflow.test` },
+      data: { email: `no-pending-${Date.now()}@yopmail.com` },
     });
     expect(res.status()).toBe(400);
   });
 
   test("POST /auth/signup/verify 400s for an unknown/expired session", async ({ request }) => {
     const res = await request.post("/auth/signup/verify", {
-      data: { email: `no-session-${Date.now()}@equipflow.test`, otp: "1234" },
+      data: { email: `no-session-${Date.now()}@yopmail.com`, otp: "1234" },
     });
     expect(res.status()).toBe(400);
   });
