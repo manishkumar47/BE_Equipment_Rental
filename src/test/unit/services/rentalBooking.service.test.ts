@@ -35,6 +35,14 @@ beforeEach(() => {
 
 describe("rentalBooking.service", () => {
   describe("createRentalBooking", () => {
+    beforeEach(() => {
+      // The stock decrement lives inside db.transaction — route the fake
+      // transaction straight through to whatever repository calls it makes,
+      // since decrementEquipmentStock/insertRentalBooking are themselves
+      // module-mocked (auto-mock from vi.mock at the top of this file).
+      vi.mocked(db.transaction).mockImplementation((cb: any) => cb({} as any));
+    });
+
     it("sends a confirmation email and returns the booking when user+equipment are present", async () => {
       const bookingRow = {
         id: 1,
@@ -44,7 +52,12 @@ describe("rentalBooking.service", () => {
         user: { name: "Alice", email: "a@b.com" },
         equipment: { name: "Drill", description: "desc", price: 100 },
       };
-      vi.mocked(rentalBookingRepository.createRentalBooking).mockResolvedValue(bookingRow as any);
+      vi.mocked(rentalBookingRepository.decrementEquipmentStock).mockResolvedValue({
+        id: 1,
+        quantity: 3,
+      } as any);
+      vi.mocked(rentalBookingRepository.insertRentalBooking).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue(bookingRow as any);
 
       const result = await rentalBookingService.createRentalBooking({
         userId: 1,
@@ -68,15 +81,35 @@ describe("rentalBooking.service", () => {
     });
 
     it("skips the confirmation email when the joined user or equipment is missing", async () => {
-      vi.mocked(rentalBookingRepository.createRentalBooking).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(rentalBookingRepository.decrementEquipmentStock).mockResolvedValue({
+        id: 1,
+        quantity: 3,
+      } as any);
+      vi.mocked(rentalBookingRepository.insertRentalBooking).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({ id: 1 } as any);
 
       await rentalBookingService.createRentalBooking({} as any);
 
       expect(sendBookingComplete).not.toHaveBeenCalled();
     });
 
+    it("throws a 409 AppError when the conditional stock decrement matches no row (insufficient stock)", async () => {
+      vi.mocked(rentalBookingRepository.decrementEquipmentStock).mockResolvedValue(
+        undefined as any,
+      );
+
+      await expect(rentalBookingService.createRentalBooking({} as any)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+      expect(rentalBookingRepository.insertRentalBooking).not.toHaveBeenCalled();
+    });
+
     it("throws a 500 AppError when the repository returns nothing", async () => {
-      vi.mocked(rentalBookingRepository.createRentalBooking).mockResolvedValue(undefined as any);
+      vi.mocked(rentalBookingRepository.decrementEquipmentStock).mockResolvedValue({
+        id: 1,
+        quantity: 3,
+      } as any);
+      vi.mocked(rentalBookingRepository.insertRentalBooking).mockResolvedValue(undefined as any);
 
       await expect(rentalBookingService.createRentalBooking({} as any)).rejects.toMatchObject({
         statusCode: 500,
@@ -84,9 +117,7 @@ describe("rentalBooking.service", () => {
     });
 
     it("wraps an unexpected repository error into an AppError", async () => {
-      vi.mocked(rentalBookingRepository.createRentalBooking).mockRejectedValue(
-        new Error("db exploded"),
-      );
+      vi.mocked(db.transaction).mockRejectedValue(new Error("db exploded"));
 
       await expect(rentalBookingService.createRentalBooking({} as any)).rejects.toMatchObject({
         statusCode: 500,
@@ -111,10 +142,36 @@ describe("rentalBooking.service", () => {
       });
     });
 
-    it("restores equipment stock when the booking was not already returned", async () => {
+    it("blocks deletion while the booking is active (equipment checked out)", async () => {
       vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
         id: 1,
         status: "active",
+        equipmentId: 7,
+        quantity: 3,
+      } as any);
+
+      await expect(rentalBookingService.deleteRentalBooking(1)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+    });
+
+    it("blocks deletion while a return is pending confirmation", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        id: 1,
+        status: "return_requested",
+        equipmentId: 7,
+        quantity: 3,
+      } as any);
+
+      await expect(rentalBookingService.deleteRentalBooking(1)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+    });
+
+    it("restores equipment stock when the booking was not already returned", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        id: 1,
+        status: "requested",
         equipmentId: 7,
         quantity: 3,
       } as any);

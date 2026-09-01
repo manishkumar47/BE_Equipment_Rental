@@ -1,25 +1,44 @@
 import db from "../db-connection.js";
-import { and, count, eq, ilike, or } from "drizzle-orm";
+import { and, count, eq, gte, ilike, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { equipment, rentalBooking, user } from "../schema/schema.js";
 import type { CreateRentalBookingObject } from "../../types/rentalBooking.type.js";
 
-export const createRentalBooking = async (
-  createRentalBookingObject: CreateRentalBookingObject,
+/**
+ * Atomically decrements equipment stock, guarded by `quantity >= x` in the
+ * WHERE clause so concurrent bookings for the last unit(s) can't both pass
+ * an application-level check and oversell the same stock (no row is
+ * returned if there isn't enough left).
+ */
+export const decrementEquipmentStock = async (
+  equipmentId: number,
+  quantity: number,
+  tx: NodePgDatabase<any> = db,
 ) => {
-  const [inserted] = await db
+  const [updated] = await tx
+    .update(equipment)
+    .set({ quantity: sql`${equipment.quantity} - ${quantity}` })
+    .where(and(eq(equipment.id, equipmentId), gte(equipment.quantity, quantity)))
+    .returning();
+  return updated;
+};
+
+export const insertRentalBooking = async (
+  createRentalBookingObject: CreateRentalBookingObject,
+  tx: NodePgDatabase<any> = db,
+) => {
+  const [inserted] = await tx
     .insert(rentalBooking)
     .values(createRentalBookingObject)
     .returning();
+  return inserted;
+};
 
-  const booking = await db.query.rentalBooking.findFirst({
-    where: { id: inserted!.id },
-    with: {
-      user: true,
-      equipment: true,
-    },
-  });
-  return booking;
+export const createRentalBooking = async (
+  createRentalBookingObject: CreateRentalBookingObject,
+) => {
+  const inserted = await insertRentalBooking(createRentalBookingObject);
+  return getRentalBookingById(inserted!.id);
 };
 
 export const getRentalBookingById = async (bookingId: number) => {

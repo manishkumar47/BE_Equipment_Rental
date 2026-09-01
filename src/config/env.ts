@@ -13,6 +13,8 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().default("http://localhost:5173"),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
+  // Optional: when unset, Sentry error tracking is simply disabled (no-op).
+  SENTRY_DSN: z.string().optional(),
 });
 
 const parseEnv = () => {

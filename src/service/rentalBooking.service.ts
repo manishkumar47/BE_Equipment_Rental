@@ -12,9 +12,25 @@ export const createRentalBooking = async (
   createRentalBookingObject: CreateRentalBookingObject,
 ) => {
   try {
-    const rentalBooking = await rentalBookingRepository.createRentalBooking(
-      createRentalBookingObject,
-    );
+    // Stock decrement + booking insert happen atomically in one transaction,
+    // guarded by a conditional `quantity >= x` WHERE clause, so two
+    // concurrent requests for the last unit(s) can't both succeed.
+    const inserted = await db.transaction(async (tx) => {
+      const updatedEquipment = await rentalBookingRepository.decrementEquipmentStock(
+        createRentalBookingObject.equipmentId,
+        createRentalBookingObject.quantity,
+        tx,
+      );
+      if (!updatedEquipment) {
+        throw new AppError(409, "Insufficient stock!");
+      }
+
+      return rentalBookingRepository.insertRentalBooking(createRentalBookingObject, tx);
+    });
+
+    const rentalBooking = inserted
+      ? await rentalBookingRepository.getRentalBookingById(inserted.id)
+      : undefined;
 
     if (rentalBooking) {
       const { user, equipment } = rentalBooking;
@@ -61,6 +77,17 @@ export const deleteRentalBooking = async (bookingId: number) => {
   const booking = await rentalBookingRepository.getRentalBookingById(bookingId);
   if (!booking) {
     throw new AppError(404, "Booking not found!");
+  }
+
+  // A booking with equipment physically checked out must go through the
+  // return flow (active -> return_requested -> returned) before it can be
+  // deleted — otherwise stock/items get silently orphaned with no record
+  // the rental ever happened.
+  if (booking.status === "active" || booking.status === "return_requested") {
+    throw new AppError(
+      409,
+      `Cannot delete — booking is currently '${booking.status}'. It must be returned first.`,
+    );
   }
 
   return await db.transaction(async (tx) => {
