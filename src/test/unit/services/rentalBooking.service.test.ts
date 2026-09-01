@@ -1,16 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../../../database/repository/rentalBooking.repository.js");
+vi.mock("../../../database/repository/rentalBookingItem.repository.js");
+vi.mock("../../../database/repository/equipmentItem.repository.js");
 vi.mock("../../../util/emails/bookingEmail.js");
 vi.mock("../../../database/db-connection.js", () => ({
   default: { transaction: vi.fn() },
 }));
 
 import * as rentalBookingRepository from "../../../database/repository/rentalBooking.repository.js";
+import * as rentalBookingItemRepository from "../../../database/repository/rentalBookingItem.repository.js";
+import * as equipmentItemRepository from "../../../database/repository/equipmentItem.repository.js";
 import { sendBookingComplete } from "../../../util/emails/bookingEmail.js";
 import db from "../../../database/db-connection.js";
 import { equipment, rentalBooking as rentalBookingTable } from "../../../database/schema/schema.js";
 import * as rentalBookingService from "../../../service/rentalBooking.service.js";
+
+const fakeEquipmentSelectTx = (quantity: number) => ({
+  select: () => ({ from: () => ({ where: () => Promise.resolve([{ quantity }]) }) }),
+  update: () => ({
+    set: () => ({
+      where: () => {
+        const p: any = Promise.resolve(undefined);
+        p.returning = () => Promise.resolve([]);
+        return p;
+      },
+    }),
+  }),
+});
 
 beforeEach(() => {
   vi.mocked(sendBookingComplete).mockResolvedValue(undefined as any);
@@ -156,6 +173,190 @@ describe("rentalBooking.service", () => {
       await rentalBookingService.deleteRentalBooking(2);
 
       expect(updateCalls).toEqual([rentalBookingTable]);
+    });
+
+    it("does not restore stock when the booking was already rejected", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        id: 3,
+        status: "rejected",
+        equipmentId: 7,
+        quantity: 3,
+      } as any);
+
+      const updateCalls: any[] = [];
+      const fakeTx = {
+        select: () => ({ from: () => ({ where: () => Promise.resolve([{ quantity: 4 }]) }) }),
+        update: (table: any) => {
+          updateCalls.push(table);
+          return {
+            set: () => ({
+              where: () => {
+                const p: any = Promise.resolve([{ id: 3, isDeleted: true }]);
+                p.returning = () => Promise.resolve([{ id: 3, isDeleted: true }]);
+                return p;
+              },
+            }),
+          };
+        },
+      };
+      vi.mocked(db.transaction).mockImplementation((cb: any) => cb(fakeTx));
+
+      await rentalBookingService.deleteRentalBooking(3);
+
+      expect(updateCalls).toEqual([rentalBookingTable]);
+    });
+  });
+
+  describe("getPendingBookingRequests", () => {
+    it("paginates and delegates to the repository", async () => {
+      vi.mocked(rentalBookingRepository.getPendingBookingRequests).mockResolvedValue({
+        data: [{ id: 1 }],
+        total: 21,
+      } as any);
+
+      const result = await rentalBookingService.getPendingBookingRequests(2, 10, "drill");
+
+      expect(rentalBookingRepository.getPendingBookingRequests).toHaveBeenCalledWith(2, 10, "drill");
+      expect(result).toEqual({ data: [{ id: 1 }], total: 21, page: 2, limit: 10, totalPages: 3 });
+    });
+  });
+
+  describe("approveBookingRequest", () => {
+    it("throws 404 when the booking does not exist", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue(undefined as any);
+      await expect(rentalBookingService.approveBookingRequest(1)).rejects.toMatchObject({
+        statusCode: 404,
+      });
+    });
+
+    it("throws 409 when the booking is not 'requested'", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        status: "active",
+      } as any);
+      await expect(rentalBookingService.approveBookingRequest(1)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+    });
+
+    it("throws 409 when the conditional approve matches no row (race condition)", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        status: "requested",
+        equipmentId: 7,
+        quantity: 2,
+      } as any);
+      vi.mocked(db.transaction).mockImplementation((cb: any) => cb({}));
+      vi.mocked(rentalBookingRepository.approveBooking).mockResolvedValue(undefined as any);
+
+      await expect(rentalBookingService.approveBookingRequest(1)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+    });
+
+    it("auto-assigns available units when there are enough tracked ones", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        status: "requested",
+        equipmentId: 7,
+        quantity: 2,
+      } as any);
+      vi.mocked(db.transaction).mockImplementation((cb: any) => cb({}));
+      vi.mocked(rentalBookingRepository.approveBooking).mockResolvedValue({
+        id: 1,
+        status: "active",
+      } as any);
+      vi.mocked(equipmentItemRepository.getAvailableItemsForEquipment).mockResolvedValue([
+        { id: 101 },
+        { id: 102 },
+      ] as any);
+      vi.mocked(equipmentItemRepository.markEquipmentItemsRented).mockResolvedValue([101, 102]);
+
+      const result = await rentalBookingService.approveBookingRequest(1);
+
+      expect(result).toEqual({ id: 1, status: "active" });
+      expect(equipmentItemRepository.getAvailableItemsForEquipment).toHaveBeenCalledWith(7, 2);
+      expect(equipmentItemRepository.markEquipmentItemsRented).toHaveBeenCalledWith(
+        [101, 102],
+        expect.anything(),
+      );
+      expect(rentalBookingItemRepository.assignItemsToBooking).toHaveBeenCalledWith(
+        1,
+        [101, 102],
+        expect.anything(),
+      );
+    });
+
+    it("approves without assigning units when there aren't enough tracked ones available", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        status: "requested",
+        equipmentId: 7,
+        quantity: 3,
+      } as any);
+      vi.mocked(db.transaction).mockImplementation((cb: any) => cb({}));
+      vi.mocked(rentalBookingRepository.approveBooking).mockResolvedValue({
+        id: 1,
+        status: "active",
+      } as any);
+      vi.mocked(equipmentItemRepository.getAvailableItemsForEquipment).mockResolvedValue([
+        { id: 101 },
+      ] as any);
+
+      await rentalBookingService.approveBookingRequest(1);
+
+      expect(equipmentItemRepository.markEquipmentItemsRented).not.toHaveBeenCalled();
+      expect(rentalBookingItemRepository.assignItemsToBooking).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("rejectBookingRequest", () => {
+    it("throws 404 when the booking does not exist", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue(undefined as any);
+      await expect(
+        rentalBookingService.rejectBookingRequest(1, "reason"),
+      ).rejects.toMatchObject({ statusCode: 404 });
+    });
+
+    it("throws 409 when the booking is not 'requested'", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        status: "active",
+      } as any);
+      await expect(
+        rentalBookingService.rejectBookingRequest(1, "reason"),
+      ).rejects.toMatchObject({ statusCode: 409 });
+    });
+
+    it("throws 409 when the conditional reject matches no row (race condition)", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        status: "requested",
+        equipmentId: 7,
+        quantity: 2,
+      } as any);
+      vi.mocked(db.transaction).mockImplementation((cb: any) => cb(fakeEquipmentSelectTx(4)));
+      vi.mocked(rentalBookingRepository.rejectBooking).mockResolvedValue(undefined as any);
+
+      await expect(
+        rentalBookingService.rejectBookingRequest(1, "reason"),
+      ).rejects.toMatchObject({ statusCode: 409 });
+    });
+
+    it("restores the reserved stock and returns the rejected booking", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        status: "requested",
+        equipmentId: 7,
+        quantity: 2,
+      } as any);
+      const fakeTx = fakeEquipmentSelectTx(4);
+      const updateSpy = vi.spyOn(fakeTx, "update");
+      vi.mocked(db.transaction).mockImplementation((cb: any) => cb(fakeTx));
+      vi.mocked(rentalBookingRepository.rejectBooking).mockResolvedValue({
+        id: 1,
+        status: "rejected",
+        rejectionReason: "reason",
+      } as any);
+
+      const result = await rentalBookingService.rejectBookingRequest(1, "reason");
+
+      expect(result).toEqual({ id: 1, status: "rejected", rejectionReason: "reason" });
+      expect(rentalBookingRepository.rejectBooking).toHaveBeenCalledWith(1, "reason", fakeTx);
+      expect(updateSpy).toHaveBeenCalledWith(equipment);
     });
   });
 

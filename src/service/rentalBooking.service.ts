@@ -1,5 +1,7 @@
 import type { CreateRentalBookingObject } from "../types/rentalBooking.type.js";
 import * as rentalBookingRepository from "../database/repository/rentalBooking.repository.js";
+import * as rentalBookingItemRepository from "../database/repository/rentalBookingItem.repository.js";
+import * as equipmentItemRepository from "../database/repository/equipmentItem.repository.js";
 import { sendBookingComplete } from "../util/emails/bookingEmail.js";
 import { AppError } from "../util/appError.js";
 import db from "../database/db-connection.js";
@@ -62,8 +64,10 @@ export const deleteRentalBooking = async (bookingId: number) => {
   }
 
   return await db.transaction(async (tx) => {
-    // If the booking was not already returned, restore the reserved stock
-    if (booking.status !== "returned") {
+    // Restore the reserved stock unless it's already been accounted for:
+    // 'returned' bookings restored stock at return time, 'rejected' ones
+    // restored it at rejection time.
+    if (booking.status !== "returned" && booking.status !== "rejected") {
       const [currentEquipment] = await tx
         .select({ quantity: equipment.quantity })
         .from(equipment)
@@ -101,4 +105,101 @@ export const getPendingReminderBookings = async () => {
 
 export const markReminderSent = async (bookingId: number) => {
   return rentalBookingRepository.markReminderSent(bookingId);
+};
+
+/**
+ * Admin views pending booking requests (paginated) — bookings awaiting
+ * approval before they become 'active'.
+ */
+export const getPendingBookingRequests = async (
+  page: number,
+  limit: number,
+  search?: string,
+) => {
+  const { data, total } = await rentalBookingRepository.getPendingBookingRequests(
+    page,
+    limit,
+    search,
+  );
+  return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+};
+
+/**
+ * Admin approves a booking request. Auto-assigns up to `quantity` available
+ * physical units to the booking (only if the equipment has enough tracked
+ * units available) — assignment is opportunistic, never blocks approval.
+ */
+export const approveBookingRequest = async (bookingId: number) => {
+  const booking = await rentalBookingRepository.getRentalBookingById(bookingId);
+  if (!booking) {
+    throw new AppError(404, "Booking not found!");
+  }
+  if (booking.status !== "requested") {
+    throw new AppError(
+      409,
+      `Cannot approve — booking is currently '${booking.status}', expected 'requested'.`,
+    );
+  }
+
+  return db.transaction(async (tx) => {
+    const updatedBooking = await rentalBookingRepository.approveBooking(bookingId, tx);
+    if (!updatedBooking) {
+      throw new AppError(409, "Booking has already been processed by another admin.");
+    }
+
+    const candidates = await equipmentItemRepository.getAvailableItemsForEquipment(
+      booking.equipmentId,
+      booking.quantity,
+    );
+    if (candidates.length >= booking.quantity) {
+      const claimedIds = await equipmentItemRepository.markEquipmentItemsRented(
+        candidates.map((c) => c.id),
+        tx,
+      );
+      await rentalBookingItemRepository.assignItemsToBooking(bookingId, claimedIds, tx);
+    }
+
+    return updatedBooking;
+  });
+};
+
+/**
+ * Admin rejects a booking request. Reverts the stock reserved at request
+ * time, since the rental never happened.
+ */
+export const rejectBookingRequest = async (bookingId: number, rejectionReason: string) => {
+  const booking = await rentalBookingRepository.getRentalBookingById(bookingId);
+  if (!booking) {
+    throw new AppError(404, "Booking not found!");
+  }
+  if (booking.status !== "requested") {
+    throw new AppError(
+      409,
+      `Cannot reject — booking is currently '${booking.status}', expected 'requested'.`,
+    );
+  }
+
+  return db.transaction(async (tx) => {
+    const updatedBooking = await rentalBookingRepository.rejectBooking(
+      bookingId,
+      rejectionReason,
+      tx,
+    );
+    if (!updatedBooking) {
+      throw new AppError(409, "Booking has already been processed by another admin.");
+    }
+
+    const [currentEquipment] = await tx
+      .select({ quantity: equipment.quantity })
+      .from(equipment)
+      .where(eq(equipment.id, booking.equipmentId));
+    if (currentEquipment) {
+      await tx
+        .update(equipment)
+        .set({ quantity: currentEquipment.quantity + booking.quantity })
+        .where(eq(equipment.id, booking.equipmentId));
+    }
+
+    return updatedBooking;
+  });
 };

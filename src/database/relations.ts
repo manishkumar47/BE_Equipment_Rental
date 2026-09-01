@@ -25,6 +25,7 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.equipmentItem.equipmentId,
       to: r.equipment.id,
     }),
+    bookingAssignments: r.many.rentalBookingItem(),
   },
 
   // 3. RENTAL BOOKING relationships
@@ -38,6 +39,19 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.equipment.id,
     }),
     fines: r.many.fine(),
+    assignedItems: r.many.rentalBookingItem(),
+  },
+
+  // RENTAL BOOKING ITEM relationships
+  rentalBookingItem: {
+    rentalBooking: r.one.rentalBooking({
+      from: r.rentalBookingItem.rentalBookingId,
+      to: r.rentalBooking.id,
+    }),
+    equipmentItem: r.one.equipmentItem({
+      from: r.rentalBookingItem.equipmentItemId,
+      to: r.equipmentItem.id,
+    }),
   },
 
   // 4. PASSWORD RESET relationships

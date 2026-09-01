@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rentalBookingSchema } from "./rentalBooking.schema.js";
+import { rentalBookingSchema, rejectBookingRequestSchema } from "./rentalBooking.schema.js";
 
 const future = (msFromNow: number) => new Date(Date.now() + msFromNow).toISOString();
 
@@ -63,5 +63,21 @@ describe("rentalBookingSchema", () => {
       equipmentId: 0,
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("rejectBookingRequestSchema", () => {
+  it("accepts a non-empty rejection reason", () => {
+    expect(
+      rejectBookingRequestSchema.safeParse({ rejectionReason: "No stock at pickup" }).success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty rejection reason", () => {
+    expect(rejectBookingRequestSchema.safeParse({ rejectionReason: "" }).success).toBe(false);
+  });
+
+  it("rejects a whitespace-only rejection reason", () => {
+    expect(rejectBookingRequestSchema.safeParse({ rejectionReason: "   " }).success).toBe(false);
   });
 });

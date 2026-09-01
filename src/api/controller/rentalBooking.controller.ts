@@ -1,9 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
-import { successResponse } from "../../helpers/res.helper.js";
+import { successResponse, errorResponse } from "../../helpers/res.helper.js";
 import * as equipmentService from "../../service/equipment.service.js";
 import * as rentalBookingService from "../../service/rentalBooking.service.js";
 import type { CreateRentalBookingObject } from "../../types/rentalBooking.type.js";
 import { AppError } from "../../util/appError.js";
+import { paginationSchema } from "../validators/return.schema.js";
 
 export const createRentalBooking = async (
   req: Request,
@@ -165,6 +166,94 @@ export const deleteRentalBooking = async (
     return successResponse(res, {
       status: 200,
       message: "Booking deleted!",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Admin views pending booking requests (paginated).
+ * GET /admin/rental-bookings/requests
+ */
+export const getPendingBookingRequests = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const parsed = paginationSchema.safeParse(req.query);
+    if (!parsed.success) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid pagination parameters",
+        parsed.error.issues.map((issue) => issue.message),
+      );
+    }
+
+    const { page, limit, search } = parsed.data;
+    const result = await rentalBookingService.getPendingBookingRequests(page, limit, search);
+
+    return successResponse(res, {
+      status: 200,
+      message: "Pending booking requests fetched!",
+      data: result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Admin approves a booking request.
+ * POST /admin/rental-bookings/:id/approve
+ */
+export const approveBooking = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const bookingId = Number(req.params.id);
+    if (!bookingId || isNaN(bookingId) || bookingId <= 0) {
+      throw new AppError(400, "Invalid booking ID!");
+    }
+
+    const booking = await rentalBookingService.approveBookingRequest(bookingId);
+
+    return successResponse(res, {
+      status: 200,
+      message: "Booking approved!",
+      data: booking,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Admin rejects a booking request.
+ * POST /admin/rental-bookings/:id/reject
+ */
+export const rejectBooking = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const bookingId = Number(req.params.id);
+    if (!bookingId || isNaN(bookingId) || bookingId <= 0) {
+      throw new AppError(400, "Invalid booking ID!");
+    }
+
+    const { rejectionReason } = req.body;
+    const booking = await rentalBookingService.rejectBookingRequest(bookingId, rejectionReason);
+
+    return successResponse(res, {
+      status: 200,
+      message: "Booking rejected!",
+      data: booking,
     });
   } catch (error) {
     return next(error);
