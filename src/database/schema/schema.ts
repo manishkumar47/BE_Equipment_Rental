@@ -111,6 +111,8 @@ export const passwordReset = pgTable(
 );
 
 export const bookingStatus = pgEnum("booking_status", [
+  "requested",
+  "rejected",
   "active",
   "return_requested",
   "returned",
@@ -135,12 +137,16 @@ export const rentalBooking = pgTable(
         onUpdate: "cascade",
       }),
     quantity: integer("quantity").notNull(),
-    status: bookingStatus("status").default("active").notNull(),
+    // New bookings start 'requested' and need admin approval before 'active'.
+    status: bookingStatus("status").default("requested").notNull(),
     returnRequestedAt: timestamp("return_requested_at", { precision: 3 }),
     returnedAt: timestamp("returned_at", { precision: 3 }),
     returnCondition: text("return_condition"), // 'good' | 'damaged' | 'lost'
     conditionNotes: text("condition_notes"),
-    rejectionReason: text("rejection_reason"), // set when admin rejects return request
+    // Reused for both booking-request rejection and return-request rejection —
+    // these happen at mutually exclusive points in the booking's lifecycle
+    // ('requested' vs 'return_requested'), so there's no ambiguity.
+    rejectionReason: text("rejection_reason"),
     deletedAt: timestamp("deleted_at", { precision: 3 }),
     isDeleted: boolean("is_deleted").default(false).notNull(),
     isReminderSent: boolean("is_reminder_sent").default(false).notNull(),
@@ -155,6 +161,38 @@ export const rentalBooking = pgTable(
       table.rentFrom,
       table.rentTo,
     ),
+  ],
+);
+
+/**
+ * Physical units auto-assigned to a booking when an admin approves it (only
+ * for equipment that has registered equipment_items). Rows persist as
+ * history after return — the same equipmentItemId can appear across
+ * multiple bookings over its lifetime.
+ */
+export const rentalBookingItem = pgTable(
+  "rental_booking_items",
+  {
+    id: serial("id").primaryKey(),
+    rentalBookingId: integer("rental_booking_id")
+      .notNull()
+      .references(() => rentalBooking.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    equipmentItemId: integer("equipment_item_id")
+      .notNull()
+      .references(() => equipmentItem.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    createdAt: timestamp("created_at", { precision: 3 })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  },
+  (table) => [
+    index("rental_booking_items_booking_id_idx").on(table.rentalBookingId),
+    index("rental_booking_items_equipment_item_id_idx").on(table.equipmentItemId),
   ],
 );
 export const equipmentCategory = pgTable("equipment_category", {
@@ -209,6 +247,7 @@ export const fine = pgTable(
     createdAt: timestamp("created_at", { precision: 3 })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
+    dueDate: timestamp("due_date", { precision: 3 }), // createdAt + 5 days, set at fine creation
     resolvedAt: timestamp("resolved_at", { precision: 3 }), // when marked paid/waived
   },
   (table) => [

@@ -1,7 +1,10 @@
 import db from "../database/db-connection.js";
 import * as returnRepository from "../database/repository/return.repository.js";
 import * as fineRepository from "../database/repository/fine.repository.js";
+import * as rentalBookingItemRepository from "../database/repository/rentalBookingItem.repository.js";
+import * as equipmentItemRepository from "../database/repository/equipmentItem.repository.js";
 import { AppError } from "../util/appError.js";
+import type { EquipmentItemStatus } from "../types/equipmentItem.type.js";
 
 // Fine tier constants
 const TIER_1_RATE = 100; // ₹100/day for days 1-7
@@ -9,6 +12,7 @@ const TIER_2_RATE = 200; // ₹200/day for days 8-14
 const TIER_1_MAX_DAYS = 7;
 const TIER_2_MAX_DAYS = 14; // cap — no charges accrue beyond day 14
 const DAMAGE_FEE_MAX_MULTIPLIER = 1.5; // damageFee must not exceed 1.5× equipment.price
+const FINE_DUE_DAYS = 5; // user must pay/resolve a fine within 5 days
 
 /**
  * Calculate tiered late fee, capped at day 14.
@@ -204,6 +208,7 @@ export const confirmReturn = async (
           amount: totalFine,
           daysLate,
           reason: reason!,
+          dueDate: new Date(Date.now() + FINE_DUE_DAYS * 24 * 60 * 60 * 1000),
         },
         tx,
       );
@@ -216,6 +221,18 @@ export const confirmReturn = async (
         booking.quantity,
         tx,
       );
+    }
+
+    // 4. Sync any physical units auto-assigned to this booking (Phase 2) to
+    // reflect the confirmed condition — 'good' frees them back up, 'damaged'
+    // and 'lost' map directly onto the same-named equipment_item statuses.
+    const assignedItemIds = await rentalBookingItemRepository.getAssignedItemIds(
+      bookingId,
+      tx,
+    );
+    if (assignedItemIds.length > 0) {
+      const itemStatus: EquipmentItemStatus = condition === "good" ? "available" : condition;
+      await equipmentItemRepository.updateEquipmentItemsStatus(assignedItemIds, itemStatus, tx);
     }
 
     return { updatedBooking, fineRecord };

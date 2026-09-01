@@ -1,14 +1,23 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../../../database/repository/return.repository.js");
 vi.mock("../../../database/repository/fine.repository.js");
+vi.mock("../../../database/repository/rentalBookingItem.repository.js");
+vi.mock("../../../database/repository/equipmentItem.repository.js");
 vi.mock("../../../database/db-connection.js", () => ({
   default: { transaction: vi.fn((cb: any) => cb({})) },
 }));
 
 import * as returnRepository from "../../../database/repository/return.repository.js";
 import * as fineRepository from "../../../database/repository/fine.repository.js";
+import * as rentalBookingItemRepository from "../../../database/repository/rentalBookingItem.repository.js";
+import * as equipmentItemRepository from "../../../database/repository/equipmentItem.repository.js";
 import * as returnService from "../../../service/return.service.js";
+
+beforeEach(() => {
+  // Default: no physical units assigned to the booking (legacy/untracked path).
+  vi.mocked(rentalBookingItemRepository.getAssignedItemIds).mockResolvedValue([]);
+});
 
 describe("return.service", () => {
   describe("requestReturn", () => {
@@ -189,6 +198,50 @@ describe("return.service", () => {
       await expect(returnService.confirmReturn(1, "good")).rejects.toMatchObject({
         statusCode: 409,
       });
+    });
+
+    it("syncs assigned physical units to 'available' on a 'good' return", async () => {
+      const notLateBooking = { ...baseBooking, rentTo: new Date(Date.now() + 60 * 60 * 1000) };
+      vi.mocked(returnRepository.getBookingForReturn).mockResolvedValue(notLateBooking as any);
+      vi.mocked(returnRepository.confirmReturn).mockResolvedValue({ id: 1, status: "returned" } as any);
+      vi.mocked(returnRepository.restoreEquipmentStock).mockResolvedValue({} as any);
+      vi.mocked(rentalBookingItemRepository.getAssignedItemIds).mockResolvedValue([101, 102]);
+
+      await returnService.confirmReturn(1, "good");
+
+      expect(equipmentItemRepository.updateEquipmentItemsStatus).toHaveBeenCalledWith(
+        [101, 102],
+        "available",
+        expect.anything(),
+      );
+    });
+
+    it("syncs assigned physical units to 'damaged' on a 'damaged' return", async () => {
+      const notLateBooking = { ...baseBooking, rentTo: new Date(Date.now() + 60 * 60 * 1000) };
+      vi.mocked(returnRepository.getBookingForReturn).mockResolvedValue(notLateBooking as any);
+      vi.mocked(returnRepository.confirmReturn).mockResolvedValue({ id: 1, status: "returned" } as any);
+      vi.mocked(returnRepository.restoreEquipmentStock).mockResolvedValue({} as any);
+      vi.mocked(fineRepository.createFine).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(rentalBookingItemRepository.getAssignedItemIds).mockResolvedValue([101]);
+
+      await returnService.confirmReturn(1, "damaged", undefined, 50);
+
+      expect(equipmentItemRepository.updateEquipmentItemsStatus).toHaveBeenCalledWith(
+        [101],
+        "damaged",
+        expect.anything(),
+      );
+    });
+
+    it("does not touch equipment items when none were assigned to the booking", async () => {
+      const notLateBooking = { ...baseBooking, rentTo: new Date(Date.now() + 60 * 60 * 1000) };
+      vi.mocked(returnRepository.getBookingForReturn).mockResolvedValue(notLateBooking as any);
+      vi.mocked(returnRepository.confirmReturn).mockResolvedValue({ id: 1, status: "returned" } as any);
+      vi.mocked(returnRepository.restoreEquipmentStock).mockResolvedValue({} as any);
+
+      await returnService.confirmReturn(1, "good");
+
+      expect(equipmentItemRepository.updateEquipmentItemsStatus).not.toHaveBeenCalled();
     });
   });
 

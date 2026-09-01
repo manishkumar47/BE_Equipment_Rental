@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { rentalBookingSchema } from "../validators/rentalBooking.schema.js";
+import { rentalBookingSchema, rejectBookingRequestSchema } from "../validators/rentalBooking.schema.js";
 import { validate } from "../../middlewares/validate.middleware.js";
 
 import bookingRateLimiter from "../../middlewares/ratelimiter/bookingRateLimiter.middleware.js";
+import generalRateLimiter from "../../middlewares/ratelimiter/generalRateLimiter.middleware.js";
 import * as rentalBookingController from "../controller/rentalBooking.controller.js";
-import { auth } from "../../middlewares/auth.middleware.js";
+import { auth, isAdmin } from "../../middlewares/auth.middleware.js";
 const rentalBookingRouter = Router();
 
 rentalBookingRouter.post(
@@ -39,6 +40,32 @@ rentalBookingRouter.delete(
   "/:id",
   auth,
   rentalBookingController.deleteRentalBooking,
+);
+
+// ─── Admin-facing booking-request routes (mounted at /admin/rental-bookings) ───
+
+export const adminRentalBookingRouter = Router();
+
+adminRentalBookingRouter.get(
+  "/requests",
+  generalRateLimiter,
+  isAdmin,
+  rentalBookingController.getPendingBookingRequests,
+);
+
+adminRentalBookingRouter.post(
+  "/:id/approve",
+  generalRateLimiter,
+  isAdmin,
+  rentalBookingController.approveBooking,
+);
+
+adminRentalBookingRouter.post(
+  "/:id/reject",
+  generalRateLimiter,
+  isAdmin,
+  validate(rejectBookingRequestSchema),
+  rentalBookingController.rejectBooking,
 );
 
 export default rentalBookingRouter;

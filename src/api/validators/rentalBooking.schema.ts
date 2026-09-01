@@ -22,3 +22,10 @@ export const rentalBookingSchema = z
     message: "rentFrom must be greater than or equal to current time!",
     path: ["rentFrom"],
   });
+
+export const rejectBookingRequestSchema = z.object({
+  rejectionReason: z
+    .string()
+    .trim()
+    .min(1, "Rejection reason is required!"),
+});

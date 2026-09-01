@@ -1,8 +1,10 @@
 import db from "../db-connection.js";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { equipmentItem } from "../schema/schema.js";
 import type {
   CreateEquipmentItemType,
+  EquipmentItemStatus,
   UpdateEquipmentItemType,
 } from "../../types/equipmentItem.type.js";
 
@@ -61,6 +63,61 @@ export const softDeleteEquipmentItem = async (itemId: number) => {
     .where(eq(equipmentItem.id, itemId))
     .returning();
   return deleted;
+};
+
+/**
+ * Best-effort auto-assignment candidates: up to `limit` available items for
+ * an equipment. Used at booking approval time — assignment is opportunistic
+ * (only happens when enough tracked units exist), never authoritative for
+ * the quantity-based stock check.
+ */
+export const getAvailableItemsForEquipment = async (
+  equipmentId: number,
+  limit: number,
+) => {
+  return db
+    .select()
+    .from(equipmentItem)
+    .where(
+      and(
+        eq(equipmentItem.equipmentId, equipmentId),
+        eq(equipmentItem.status, "available"),
+        eq(equipmentItem.isDeleted, false),
+      ),
+    )
+    .limit(limit);
+};
+
+/**
+ * Conditionally flips a set of items to 'rented', only those still
+ * 'available' (guards against a race with a concurrent approval). Returns
+ * the ids that were actually claimed — may be fewer than requested.
+ */
+export const markEquipmentItemsRented = async (
+  itemIds: number[],
+  tx: NodePgDatabase<any>,
+) => {
+  if (itemIds.length === 0) return [];
+  const rows = await tx
+    .update(equipmentItem)
+    .set({ status: "rented" })
+    .where(and(inArray(equipmentItem.id, itemIds), eq(equipmentItem.status, "available")))
+    .returning({ id: equipmentItem.id });
+  return rows.map((r) => r.id);
+};
+
+/** Bulk status update for a booking's assigned items on return confirmation. */
+export const updateEquipmentItemsStatus = async (
+  itemIds: number[],
+  status: EquipmentItemStatus,
+  tx: NodePgDatabase<any>,
+) => {
+  if (itemIds.length === 0) return [];
+  return tx
+    .update(equipmentItem)
+    .set({ status })
+    .where(inArray(equipmentItem.id, itemIds))
+    .returning();
 };
 
 /**
