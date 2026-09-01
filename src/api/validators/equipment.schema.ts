@@ -1,4 +1,14 @@
 import z from "zod";
+import { paginationSchema } from "./return.schema.js";
+
+export const equipmentListQuerySchema = paginationSchema.extend({
+  categoryId: z.coerce.number().int().positive().optional(),
+  inStockOnly: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((v) => v === "true"),
+  sortBy: z.enum(["name_asc", "price_asc", "price_desc", "stock_desc"]).optional(),
+});
 
 export const equipmentSchema = z.object({
   name: z.string().min(1, "Please enter a valid equipment name!"),

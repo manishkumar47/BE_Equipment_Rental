@@ -1,4 +1,10 @@
 import z from "zod";
+import { paginationSchema } from "./return.schema.js";
+import { bookingStatus } from "../../database/schema/schema.js";
+
+export const adminBookingListQuerySchema = paginationSchema.extend({
+  status: z.enum(bookingStatus.enumValues).optional(),
+});
 
 export const rentalBookingSchema = z
   .object({

@@ -47,6 +47,13 @@ rentalBookingRouter.delete(
 export const adminRentalBookingRouter = Router();
 
 adminRentalBookingRouter.get(
+  "/",
+  generalRateLimiter,
+  isAdmin,
+  rentalBookingController.getAllBookingsPaginated,
+);
+
+adminRentalBookingRouter.get(
   "/requests",
   generalRateLimiter,
   isAdmin,

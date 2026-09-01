@@ -5,6 +5,7 @@ import * as rentalBookingService from "../../service/rentalBooking.service.js";
 import type { CreateRentalBookingObject } from "../../types/rentalBooking.type.js";
 import { AppError } from "../../util/appError.js";
 import { paginationSchema } from "../validators/return.schema.js";
+import { adminBookingListQuerySchema } from "../validators/rentalBooking.schema.js";
 
 export const createRentalBooking = async (
   req: Request,
@@ -199,6 +200,44 @@ export const getPendingBookingRequests = async (
     return successResponse(res, {
       status: 200,
       message: "Pending booking requests fetched!",
+      data: result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Admin views all bookings across every status (paginated).
+ * GET /admin/rental-bookings/
+ */
+export const getAllBookingsPaginated = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const parsed = adminBookingListQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid pagination parameters",
+        parsed.error.issues.map((issue) => issue.message),
+      );
+    }
+
+    const { page, limit, search, status } = parsed.data;
+    const result = await rentalBookingService.getAllRentalBookingsPaginated(
+      page,
+      limit,
+      search,
+      status,
+    );
+
+    return successResponse(res, {
+      status: 200,
+      message: "Bookings fetched!",
       data: result,
     });
   } catch (error) {
