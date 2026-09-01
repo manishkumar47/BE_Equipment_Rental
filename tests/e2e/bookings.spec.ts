@@ -5,6 +5,7 @@ import {
   authHeader,
   createTestEquipment,
   createTestBooking,
+  createBookingRequest,
   futureIso,
 } from "./fixtures.js";
 
@@ -118,11 +119,13 @@ test.describe("Rental Bookings API", () => {
     expect(res.status()).toBe(200);
   });
 
-  test("deleting a not-yet-returned booking restores equipment stock", async ({ request }) => {
+  test("deleting a still-requested (unapproved) booking restores equipment stock", async ({
+    request,
+  }) => {
     const adminToken = await login(request, mockUsers.admin.email, mockUsers.admin.password);
     const userToken = await login(request, mockUsers.user1.email, mockUsers.user1.password);
     const item = await createTestEquipment(request, adminToken, { quantity: 5 });
-    const booking = await createTestBooking(request, userToken, item.id, 2);
+    const booking = await createBookingRequest(request, userToken, item.id, 2);
 
     const midRes = await request.get(`/equipments/${item.id}`);
     expect((await midRes.json()).data.quantity).toBe(3);
@@ -134,6 +137,25 @@ test.describe("Rental Bookings API", () => {
 
     const afterRes = await request.get(`/equipments/${item.id}`);
     expect((await afterRes.json()).data.quantity).toBe(5);
+  });
+
+  test("deleting an active (approved, not yet returned) booking is blocked", async ({
+    request,
+  }) => {
+    const adminToken = await login(request, mockUsers.admin.email, mockUsers.admin.password);
+    const userToken = await login(request, mockUsers.user1.email, mockUsers.user1.password);
+    const item = await createTestEquipment(request, adminToken, { quantity: 5 });
+    const booking = await createTestBooking(request, userToken, item.id, 2);
+    expect(booking.status).toBe("active");
+
+    const deleteRes = await request.delete(`/rental-bookings/${booking.id}`, {
+      headers: authHeader(userToken),
+    });
+    expect(deleteRes.status()).toBe(409);
+
+    // Equipment stays checked out — deletion must not silently release it.
+    const afterRes = await request.get(`/equipments/${item.id}`);
+    expect((await afterRes.json()).data.quantity).toBe(3);
   });
 
   test("GET /rental-bookings/my returns only the caller's bookings", async ({ request }) => {

@@ -22,6 +22,10 @@ export const createRentalBooking = async (
     if (!equipment) {
       throw new AppError(404, "Equipment Not Found!");
     }
+    // Fast, non-authoritative pre-check for a friendlier error message.
+    // The actual stock decrement is enforced atomically inside the service
+    // (conditional WHERE quantity >= x in a transaction), so this check
+    // being stale under concurrent requests is not a correctness issue.
     if (quantity > equipment.quantity) {
       throw new AppError(409, "Insufficient stock!");
     }
@@ -39,9 +43,6 @@ export const createRentalBooking = async (
     if (!rentalBooking) {
       throw new AppError(500, "Could not create booking!");
     }
-    await equipmentService.updateEquipment(equipmentId, {
-      quantity: equipment.quantity - quantity,
-    });
     return successResponse(res, {
       status: 201,
       message: "Booking created!",
