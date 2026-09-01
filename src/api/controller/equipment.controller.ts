@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { successResponse } from "../../helpers/res.helper.js";
+import { successResponse, errorResponse } from "../../helpers/res.helper.js";
 import * as equipmentService from "../../service/equipment.service.js";
 import type {
   CreateEquipmentType,
@@ -7,6 +7,7 @@ import type {
 } from "../../types/equipment.type.js";
 import { equipmentCategory } from "../../database/schema/schema.js";
 import { logger } from "../../core/pinoLogger.js";
+import { equipmentListQuerySchema } from "../validators/equipment.schema.js";
 
 export const createEquipment = async (
   req: Request,
@@ -34,12 +35,49 @@ export const createEquipment = async (
   }
 };
 
+/**
+ * GET /equipments — returns the full unpaginated catalog by default
+ * (existing consumers: equipment details lookup, admin dashboard stats).
+ * When any pagination/filter query param is present, returns the paginated
+ * shape instead (consumed by the public catalog's infinite scroll and the
+ * admin fleet table).
+ */
 export const getAllEquipments = async (
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
+    const hasListParams = ["page", "limit", "search", "categoryId", "inStockOnly", "sortBy"].some(
+      (key) => req.query[key] !== undefined,
+    );
+
+    if (hasListParams) {
+      const parsed = equipmentListQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid pagination parameters",
+          parsed.error.issues.map((issue) => issue.message),
+        );
+      }
+
+      const { page, limit, search, categoryId, inStockOnly, sortBy } = parsed.data;
+      const result = await equipmentService.getEquipmentsPaginated(page, limit, {
+        search,
+        categoryId,
+        inStockOnly,
+        sortBy,
+      });
+
+      return successResponse(res, {
+        status: 200,
+        message: "Equipment fetched!",
+        data: result,
+      });
+    }
+
     const equipments = await equipmentService.getAllEquipmentsWithItemCounts();
     return successResponse(res, {
       status: 200,

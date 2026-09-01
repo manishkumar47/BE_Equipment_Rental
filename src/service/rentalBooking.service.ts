@@ -1,4 +1,5 @@
 import type { CreateRentalBookingObject } from "../types/rentalBooking.type.js";
+import type { BookingStatusFilter } from "../database/repository/rentalBooking.repository.js";
 import * as rentalBookingRepository from "../database/repository/rentalBooking.repository.js";
 import * as rentalBookingItemRepository from "../database/repository/rentalBookingItem.repository.js";
 import * as equipmentItemRepository from "../database/repository/equipmentItem.repository.js";
@@ -147,6 +148,25 @@ export const getPendingBookingRequests = async (
     page,
     limit,
     search,
+  );
+  return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+};
+
+/**
+ * Admin views all bookings (paginated), across every status, for the
+ * fleet-wide bookings table.
+ */
+export const getAllRentalBookingsPaginated = async (
+  page: number,
+  limit: number,
+  search?: string,
+  status?: BookingStatusFilter,
+) => {
+  const { data, total } = await rentalBookingRepository.getAllRentalBookingsPaginated(
+    page,
+    limit,
+    search,
+    status,
   );
   return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
 };

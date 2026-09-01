@@ -1,8 +1,10 @@
 import db from "../db-connection.js";
 import { and, count, eq, gte, ilike, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { equipment, rentalBooking, user } from "../schema/schema.js";
+import { equipment, rentalBooking, user, bookingStatus } from "../schema/schema.js";
 import type { CreateRentalBookingObject } from "../../types/rentalBooking.type.js";
+
+export type BookingStatusFilter = (typeof bookingStatus.enumValues)[number];
 
 /**
  * Atomically decrements equipment stock, guarded by `quantity >= x` in the
@@ -118,6 +120,88 @@ export const getPendingBookingRequests = async (
     eq(rentalBooking.status, "requested"),
     eq(rentalBooking.isDeleted, false),
   ];
+
+  if (search && search.trim()) {
+    const searchPattern = `%${search.trim()}%`;
+    const num = Number(search.trim());
+    const isNum = !isNaN(num) && num > 0;
+
+    const searchCondition = or(
+      ilike(user.name, searchPattern),
+      ilike(user.email, searchPattern),
+      ilike(equipment.name, searchPattern),
+      ...(isNum ? [eq(rentalBooking.id, num)] : []),
+    );
+
+    if (searchCondition) {
+      baseConditions.push(searchCondition);
+    }
+  }
+
+  const whereClause = and(...baseConditions);
+
+  const [rawRows, totalResult] = await Promise.all([
+    db
+      .select({
+        booking: rentalBooking,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+        equipment: {
+          id: equipment.id,
+          name: equipment.name,
+          description: equipment.description,
+          price: equipment.price,
+          quantity: equipment.quantity,
+          imageUrl: equipment.imageUrl,
+        },
+      })
+      .from(rentalBooking)
+      .innerJoin(user, eq(rentalBooking.userId, user.id))
+      .innerJoin(equipment, eq(rentalBooking.equipmentId, equipment.id))
+      .where(whereClause)
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ total: count() })
+      .from(rentalBooking)
+      .innerJoin(user, eq(rentalBooking.userId, user.id))
+      .innerJoin(equipment, eq(rentalBooking.equipmentId, equipment.id))
+      .where(whereClause),
+  ]);
+
+  const data = rawRows.map((row) => ({
+    ...row.booking,
+    user: row.user,
+    equipment: row.equipment,
+  }));
+
+  const total = totalResult[0]?.total ?? 0;
+
+  return { data, total };
+};
+
+/**
+ * Get paginated bookings across all statuses for the admin fleet-wide
+ * bookings table, with optional status filter and search (same
+ * user/equipment/booking-id search as `getPendingBookingRequests`).
+ */
+export const getAllRentalBookingsPaginated = async (
+  page: number,
+  limit: number,
+  search?: string,
+  status?: BookingStatusFilter,
+) => {
+  const offset = (page - 1) * limit;
+
+  const baseConditions = [eq(rentalBooking.isDeleted, false)];
+
+  if (status) {
+    baseConditions.push(eq(rentalBooking.status, status));
+  }
 
   if (search && search.trim()) {
     const searchPattern = `%${search.trim()}%`;

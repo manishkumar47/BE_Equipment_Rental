@@ -1,4 +1,5 @@
 import * as equipmentRepository from "../database/repository/equipment.repository.js";
+import type { EquipmentListFilters } from "../database/repository/equipment.repository.js";
 import * as equipmentItemService from "./equipmentItem.service.js";
 import type {
   CreateEquipmentType,
@@ -50,6 +51,27 @@ export const getAllEquipmentsWithItemCounts = async () => {
     totalItemCount: counts.get(e.id)?.totalItemCount ?? 0,
     availableItemCount: counts.get(e.id)?.availableItemCount ?? 0,
   }));
+};
+
+/**
+ * Paginated equivalent of `getAllEquipmentsWithItemCounts`, used by the
+ * public catalog's infinite scroll and the admin fleet table.
+ */
+export const getEquipmentsPaginated = async (
+  page: number,
+  limit: number,
+  filters: EquipmentListFilters,
+) => {
+  const { data, total } = await equipmentRepository.getEquipmentsPaginated(page, limit, filters);
+  const counts = await equipmentItemService.getItemCountsMap(data.map((e) => e.id));
+
+  const withCounts = data.map((e) => ({
+    ...e,
+    totalItemCount: counts.get(e.id)?.totalItemCount ?? 0,
+    availableItemCount: counts.get(e.id)?.availableItemCount ?? 0,
+  }));
+
+  return { data: withCounts, total, page, limit, totalPages: Math.ceil(total / limit) };
 };
 
 export const getEquipmentByIdWithItemCounts = async (equipmentId: number) => {
