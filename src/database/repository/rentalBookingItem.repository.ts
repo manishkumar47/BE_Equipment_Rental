@@ -147,6 +147,27 @@ export const confirmItemReturn = async (
   return updated;
 };
 
+/**
+ * Batched per-booking item counts (total tracked units + how many are still
+ * outstanding), for annotating a user's booking list without an N+1 query.
+ * A booking absent from the result has no tracked units at all (legacy/
+ * untracked equipment) — the whole quantity returns as one atomic unit.
+ */
+export const getItemCountsForBookings = async (rentalBookingIds: number[]) => {
+  if (rentalBookingIds.length === 0) return [];
+  return db
+    .select({
+      rentalBookingId: rentalBookingItem.rentalBookingId,
+      totalCount: sql<number>`count(*)`.mapWith(Number),
+      outstandingCount: sql<number>`count(*) filter (where ${rentalBookingItem.returnedAt} is null)`.mapWith(
+        Number,
+      ),
+    })
+    .from(rentalBookingItem)
+    .where(inArray(rentalBookingItem.rentalBookingId, rentalBookingIds))
+    .groupBy(rentalBookingItem.rentalBookingId);
+};
+
 /** How many units of this booking are still outstanding (not yet returned). */
 export const countOutstandingItems = async (
   rentalBookingId: number,

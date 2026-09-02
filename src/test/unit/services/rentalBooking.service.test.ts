@@ -31,6 +31,7 @@ const fakeEquipmentSelectTx = (quantity: number) => ({
 
 beforeEach(() => {
   vi.mocked(sendBookingComplete).mockResolvedValue(undefined as any);
+  vi.mocked(rentalBookingItemRepository.getItemCountsForBookings).mockResolvedValue([]);
 });
 
 describe("rentalBooking.service", () => {
@@ -418,11 +419,31 @@ describe("rentalBooking.service", () => {
   });
 
   describe("getRentalBookingsByUserId", () => {
-    it("delegates to the repository", async () => {
+    it("annotates each booking with 0 tracked/outstanding counts when no units are tracked", async () => {
+      const rows = [{ id: 1 }, { id: 2 }];
+      vi.mocked(rentalBookingRepository.getRentalBookingsByUserId).mockResolvedValue(rows as any);
+      vi.mocked(rentalBookingItemRepository.getItemCountsForBookings).mockResolvedValue([]);
+
+      const result = await rentalBookingService.getRentalBookingsByUserId(5);
+
+      expect(rentalBookingRepository.getRentalBookingsByUserId).toHaveBeenCalledWith(5);
+      expect(rentalBookingItemRepository.getItemCountsForBookings).toHaveBeenCalledWith([1, 2]);
+      expect(result).toEqual([
+        { id: 1, trackedItemsCount: 0, outstandingItemsCount: 0 },
+        { id: 2, trackedItemsCount: 0, outstandingItemsCount: 0 },
+      ]);
+    });
+
+    it("attaches tracked/outstanding counts for a serialized booking", async () => {
       const rows = [{ id: 1 }];
       vi.mocked(rentalBookingRepository.getRentalBookingsByUserId).mockResolvedValue(rows as any);
-      await expect(rentalBookingService.getRentalBookingsByUserId(5)).resolves.toEqual(rows);
-      expect(rentalBookingRepository.getRentalBookingsByUserId).toHaveBeenCalledWith(5);
+      vi.mocked(rentalBookingItemRepository.getItemCountsForBookings).mockResolvedValue([
+        { rentalBookingId: 1, totalCount: 5, outstandingCount: 2 },
+      ] as any);
+
+      const result = await rentalBookingService.getRentalBookingsByUserId(5);
+
+      expect(result).toEqual([{ id: 1, trackedItemsCount: 5, outstandingItemsCount: 2 }]);
     });
   });
 
