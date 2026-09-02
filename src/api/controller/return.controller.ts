@@ -25,7 +25,9 @@ export const requestReturn = async (
       throw new AppError(400, "Invalid booking ID!");
     }
 
-    const booking = await returnService.requestReturn(bookingId, userId);
+    const { quantity } = req.body as { quantity?: number };
+
+    const booking = await returnService.requestReturn(bookingId, userId, quantity);
 
     return successResponse(res, {
       status: 200,
@@ -90,14 +92,14 @@ export const confirmReturn = async (
       throw new AppError(400, "Invalid booking ID!");
     }
 
-    const { condition, conditionNotes, damageFee } = req.body;
+    const { condition, conditionNotes, damageFee, items } = req.body;
 
-    const result = await returnService.confirmReturn(
-      bookingId,
+    const result = await returnService.confirmReturn(bookingId, {
       condition,
       conditionNotes,
       damageFee,
-    );
+      items,
+    });
 
     return successResponse(res, {
       status: 200,

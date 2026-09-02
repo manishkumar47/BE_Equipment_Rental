@@ -50,6 +50,32 @@ export async function createTestEquipment(
   return body.data;
 }
 
+/**
+ * Creates equipment and registers `quantity` individually serialized units
+ * for it, so bookings against it go through the per-unit return path.
+ */
+export async function createTestEquipmentWithUnits(
+  request: APIRequestContext,
+  adminToken: string,
+  overrides: { quantity: number; price?: number; categoryName?: string },
+): Promise<{ id: number; quantity: number; price: number }> {
+  const item = await createTestEquipment(request, adminToken, overrides);
+
+  const items = Array.from({ length: overrides.quantity }, (_, i) => ({
+    serialNumber: `E2E-${item.id}-${i}-${Date.now()}`,
+  }));
+
+  const res = await request.post(`/equipments/${item.id}/items/bulk`, {
+    headers: authHeader(adminToken),
+    data: { items },
+  });
+  if (!res.ok()) {
+    throw new Error(`Failed to bulk-create equipment items: ${res.status()} ${await res.text()}`);
+  }
+
+  return item;
+}
+
 export function futureIso(msFromNow: number): string {
   return new Date(Date.now() + msFromNow).toISOString();
 }

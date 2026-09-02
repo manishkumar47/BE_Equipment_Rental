@@ -8,8 +8,12 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
  * WHERE clause guards: must be the owner, status must be 'active', not soft-deleted.
  * Returns the updated row or undefined if no row matched (double-click / state change).
  */
-export const requestReturn = async (bookingId: number, userId: number) => {
-  const [updated] = await db
+export const requestReturn = async (
+  bookingId: number,
+  userId: number,
+  tx: NodePgDatabase<any> = db,
+) => {
+  const [updated] = await tx
     .update(rentalBooking)
     .set({
       status: "return_requested",
@@ -180,6 +184,37 @@ export const restoreEquipmentStock = async (
 };
 
 /**
+ * Confirm return for a SERIALIZED booking (per-unit path). Unlike the legacy
+ * confirmReturn above, this does not set returnCondition/conditionNotes on
+ * the booking (those live per-item now) and only marks the booking fully
+ * 'returned' when every unit has come back — otherwise it reverts to
+ * 'active' with the remaining, not-yet-requested units still outstanding.
+ * Conditional UPDATE WHERE status = 'return_requested' guards races.
+ */
+export const finalizeSerializedReturn = async (
+  bookingId: number,
+  fullyReturned: boolean,
+  tx: NodePgDatabase<any>,
+) => {
+  const [updated] = await tx
+    .update(rentalBooking)
+    .set(
+      fullyReturned
+        ? { status: "returned", returnedAt: new Date(), returnRequestedAt: null }
+        : { status: "active", returnRequestedAt: null },
+    )
+    .where(
+      and(
+        eq(rentalBooking.id, bookingId),
+        eq(rentalBooking.status, "return_requested"),
+        eq(rentalBooking.isDeleted, false),
+      ),
+    )
+    .returning();
+  return updated;
+};
+
+/**
  * Reject a return request. Reverts status to 'active', clears returnRequestedAt,
  * and stores the rejection reason.
  * Conditional WHERE guards against race conditions.
@@ -187,8 +222,9 @@ export const restoreEquipmentStock = async (
 export const rejectReturn = async (
   bookingId: number,
   rejectionReason: string,
+  tx: NodePgDatabase<any> = db,
 ) => {
-  const [updated] = await db
+  const [updated] = await tx
     .update(rentalBooking)
     .set({
       status: "active",

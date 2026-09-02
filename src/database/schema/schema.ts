@@ -189,10 +189,19 @@ export const rentalBookingItem = pgTable(
     createdAt: timestamp("created_at", { precision: 3 })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
+    // Partial/per-unit returns: all items in the same return request share the
+    // same returnRequestedAt (that shared timestamp IS the grouping — there is
+    // no separate "return batch" table). Only one pending group is allowed per
+    // booking at a time, enforced via rentalBooking.status = 'return_requested'.
+    returnRequestedAt: timestamp("return_requested_at", { precision: 3 }),
+    returnedAt: timestamp("returned_at", { precision: 3 }),
+    condition: text("condition"), // 'good' | 'damaged' | 'lost', set on confirm
+    damageFee: doublePrecision("damage_fee"),
   },
   (table) => [
     index("rental_booking_items_booking_id_idx").on(table.rentalBookingId),
     index("rental_booking_items_equipment_item_id_idx").on(table.equipmentItemId),
+    index("rental_booking_items_return_requested_idx").on(table.returnRequestedAt),
   ],
 );
 export const equipmentCategory = pgTable("equipment_category", {
