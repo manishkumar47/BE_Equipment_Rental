@@ -14,3 +14,11 @@ export type RentalBooking = {
   rentFrom: Date;
   quantity: number;
 };
+
+export type RentalBookingItemCondition = "good" | "damaged" | "lost";
+
+export type ReturnItemDecision = {
+  equipmentItemId: number;
+  condition: RentalBookingItemCondition;
+  damageFee?: number;
+};

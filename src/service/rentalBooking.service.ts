@@ -119,8 +119,29 @@ export const deleteRentalBooking = async (bookingId: number) => {
   });
 };
 
+/**
+ * Augments each booking with tracked-unit counts so the frontend knows
+ * whether it can offer a partial-return quantity picker: `trackedItemsCount`
+ * of 0 means this booking's equipment has no individually tracked units
+ * (legacy all-or-nothing return); otherwise `outstandingItemsCount` is how
+ * many are still with the renter right now.
+ */
 export const getRentalBookingsByUserId = async (userId: number) => {
-  return rentalBookingRepository.getRentalBookingsByUserId(userId);
+  const bookings = await rentalBookingRepository.getRentalBookingsByUserId(userId);
+
+  const counts = await rentalBookingItemRepository.getItemCountsForBookings(
+    bookings.map((b) => b.id),
+  );
+  const countsByBooking = new Map(counts.map((c) => [c.rentalBookingId, c]));
+
+  return bookings.map((booking) => {
+    const count = countsByBooking.get(booking.id);
+    return {
+      ...booking,
+      trackedItemsCount: count?.totalCount ?? 0,
+      outstandingItemsCount: count?.outstandingCount ?? 0,
+    };
+  });
 };
 
 export const getAllRentalBookings = async () => {

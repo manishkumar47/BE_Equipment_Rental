@@ -4,6 +4,7 @@ import { validate } from "../../middlewares/validate.middleware.js";
 import {
   confirmReturnSchema,
   rejectReturnSchema,
+  requestReturnSchema,
 } from "../validators/return.schema.js";
 import * as returnController from "../controller/return.controller.js";
 import generalRateLimiter from "../../middlewares/ratelimiter/generalRateLimiter.middleware.js";
@@ -16,6 +17,7 @@ returnRouter.post(
   "/:bookingId/return-request",
   generalRateLimiter,
   auth,
+  validate(requestReturnSchema),
   returnController.requestReturn,
 );
 
