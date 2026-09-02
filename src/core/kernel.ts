@@ -8,13 +8,7 @@ import pinoConfig from "./pinoLogger.js";
 import { setupSwagger } from "../config/swagger.js";
 import { env } from "../config/env.js";
 
-import userRouter from "../api/routes/user.route.js";
-import authRouter from "../api/routes/auth.route.js";
-import equipmentRouter from "../api/routes/equipment.route.js";
-import rentalBookingRouter, { adminRentalBookingRouter } from "../api/routes/rentalBooking.route.js";
-import categoryRouter from "../api/routes/category.route.js";
-import { returnRouter, adminReturnRouter } from "../api/routes/return.route.js";
-import fineRouter from "../api/routes/fine.route.js";
+import apiRoutes from "../api/routes/index.js";
 
 import { errorHandler } from "../middlewares/errorhandler.middleware.js";
 import initCronJobs from "../cron/cron.scheduler.js";
@@ -55,15 +49,7 @@ export class Kernel {
       res.redirect(`${frontendUrl.replace(/\/$/, "")}/reset-password${queryStr}`);
     });
 
-    app.use("/users", userRouter);
-    app.use("/auth", authRouter);
-    app.use("/equipments", equipmentRouter);
-    app.use("/rental-bookings", rentalBookingRouter);
-    app.use("/category", categoryRouter);
-    app.use("/rentals", returnRouter);
-    app.use("/admin/rentals", adminReturnRouter);
-    app.use("/admin/rental-bookings", adminRentalBookingRouter);
-    app.use("/fines", fineRouter);
+    app.use(apiRoutes);
   }
 
   public setupSwagger(app: Express): void {
