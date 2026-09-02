@@ -9,7 +9,7 @@ const loadTemplate = async (templateName: string) => {
   }
 
   const templatePath = new URL(
-    `./templates/${templateName}.hbs`,
+    `../../../mail-template/${templateName}.hbs`,
     import.meta.url,
   );
   const templateSource = await readFile(templatePath, "utf8");
