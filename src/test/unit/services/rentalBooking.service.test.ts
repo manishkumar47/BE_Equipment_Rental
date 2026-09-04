@@ -125,6 +125,15 @@ describe("rentalBooking.service", () => {
         message: "db exploded",
       });
     });
+
+    it("falls back to a generic message when the unexpected error carries none", async () => {
+      vi.mocked(db.transaction).mockRejectedValue({});
+
+      await expect(rentalBookingService.createRentalBooking({} as any)).rejects.toMatchObject({
+        statusCode: 500,
+        message: "Internal Server Error",
+      });
+    });
   });
 
   describe("getRentalBookingById", () => {
@@ -233,6 +242,39 @@ describe("rentalBooking.service", () => {
       expect(updateCalls).toEqual([rentalBookingTable]);
     });
 
+    it("skips the stock update when the equipment row can no longer be found", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        id: 4,
+        status: "requested",
+        equipmentId: 7,
+        quantity: 3,
+      } as any);
+
+      const updateCalls: any[] = [];
+      const fakeTx = {
+        select: () => ({ from: () => ({ where: () => Promise.resolve([]) }) }),
+        update: (table: any) => {
+          updateCalls.push(table);
+          return {
+            set: () => ({
+              where: () => {
+                const result = [{ id: 4, isDeleted: true }];
+                const p: any = Promise.resolve(result);
+                p.returning = () => Promise.resolve(result);
+                return p;
+              },
+            }),
+          };
+        },
+      };
+      vi.mocked(db.transaction).mockImplementation((cb: any) => cb(fakeTx));
+
+      const result = await rentalBookingService.deleteRentalBooking(4);
+
+      expect(result).toEqual({ id: 4, isDeleted: true });
+      expect(updateCalls).toEqual([rentalBookingTable]);
+    });
+
     it("does not restore stock when the booking was already rejected", async () => {
       vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
         id: 3,
@@ -276,6 +318,36 @@ describe("rentalBooking.service", () => {
 
       expect(rentalBookingRepository.getPendingBookingRequests).toHaveBeenCalledWith(2, 10, "drill");
       expect(result).toEqual({ data: [{ id: 1 }], total: 21, page: 2, limit: 10, totalPages: 3 });
+    });
+  });
+
+  describe("getAllRentalBookingsPaginated", () => {
+    it("paginates and delegates search and status filters to the repository", async () => {
+      vi.mocked(rentalBookingRepository.getAllRentalBookingsPaginated).mockResolvedValue({
+        data: [{ id: 1 }, { id: 2 }],
+        total: 33,
+      } as any);
+
+      const result = await rentalBookingService.getAllRentalBookingsPaginated(
+        1,
+        10,
+        "drill",
+        "active",
+      );
+
+      expect(rentalBookingRepository.getAllRentalBookingsPaginated).toHaveBeenCalledWith(
+        1,
+        10,
+        "drill",
+        "active",
+      );
+      expect(result).toEqual({
+        data: [{ id: 1 }, { id: 2 }],
+        total: 33,
+        page: 1,
+        limit: 10,
+        totalPages: 4,
+      });
     });
   });
 
@@ -415,6 +487,28 @@ describe("rentalBooking.service", () => {
       expect(result).toEqual({ id: 1, status: "rejected", rejectionReason: "reason" });
       expect(rentalBookingRepository.rejectBooking).toHaveBeenCalledWith(1, "reason", fakeTx);
       expect(updateSpy).toHaveBeenCalledWith(equipment);
+    });
+
+    it("skips the stock restoration when the equipment row can no longer be found", async () => {
+      vi.mocked(rentalBookingRepository.getRentalBookingById).mockResolvedValue({
+        status: "requested",
+        equipmentId: 7,
+        quantity: 2,
+      } as any);
+      const fakeTx = {
+        select: () => ({ from: () => ({ where: () => Promise.resolve([]) }) }),
+        update: vi.fn(),
+      };
+      vi.mocked(db.transaction).mockImplementation((cb: any) => cb(fakeTx));
+      vi.mocked(rentalBookingRepository.rejectBooking).mockResolvedValue({
+        id: 1,
+        status: "rejected",
+      } as any);
+
+      const result = await rentalBookingService.rejectBookingRequest(1, "reason");
+
+      expect(result).toEqual({ id: 1, status: "rejected" });
+      expect(fakeTx.update).not.toHaveBeenCalled();
     });
   });
 

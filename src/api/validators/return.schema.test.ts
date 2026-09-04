@@ -43,6 +43,35 @@ describe("confirmReturnSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("accepts a per-unit 'items' array with a damaged unit carrying a damage fee", () => {
+    const result = confirmReturnSchema.safeParse({
+      items: [{ equipmentItemId: 1, condition: "damaged", damageFee: 50 }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a per-unit 'items' entry that is 'damaged' without a damage fee", () => {
+    const result = confirmReturnSchema.safeParse({
+      items: [{ equipmentItemId: 1, condition: "damaged" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a per-unit 'items' entry with a damage fee for a non-'damaged' condition", () => {
+    const result = confirmReturnSchema.safeParse({
+      items: [{ equipmentItemId: 1, condition: "good", damageFee: 50 }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects providing both 'condition' and 'items'", () => {
+    const result = confirmReturnSchema.safeParse({
+      condition: "good",
+      items: [{ equipmentItemId: 1, condition: "good" }],
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("rejectReturnSchema", () => {

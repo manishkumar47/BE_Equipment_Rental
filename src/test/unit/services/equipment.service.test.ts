@@ -93,6 +93,35 @@ describe("equipment.service", () => {
     });
   });
 
+  describe("getEquipmentsPaginated", () => {
+    it("annotates paginated results with item counts and pagination metadata", async () => {
+      const rows = [{ id: 1, name: "Drill" }, { id: 2, name: "Ladder" }];
+      vi.mocked(equipmentRepository.getEquipmentsPaginated).mockResolvedValue({
+        data: rows,
+        total: 42,
+      } as any);
+      vi.mocked(equipmentItemService.getItemCountsMap).mockResolvedValue(
+        new Map([[1, { totalItemCount: 5, availableItemCount: 3 }]]),
+      );
+
+      const filters = { categoryId: 2 } as any;
+      const result = await equipmentService.getEquipmentsPaginated(1, 20, filters);
+
+      expect(equipmentRepository.getEquipmentsPaginated).toHaveBeenCalledWith(1, 20, filters);
+      expect(equipmentItemService.getItemCountsMap).toHaveBeenCalledWith([1, 2]);
+      expect(result).toEqual({
+        data: [
+          { id: 1, name: "Drill", totalItemCount: 5, availableItemCount: 3 },
+          { id: 2, name: "Ladder", totalItemCount: 0, availableItemCount: 0 },
+        ],
+        total: 42,
+        page: 1,
+        limit: 20,
+        totalPages: 3,
+      });
+    });
+  });
+
   describe("getEquipmentByIdWithItemCounts", () => {
     it("returns undefined without querying counts when the equipment does not exist", async () => {
       vi.mocked(equipmentRepository.getEquipmentFromId).mockResolvedValue(undefined as any);

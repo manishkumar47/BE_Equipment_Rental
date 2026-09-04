@@ -64,6 +64,23 @@ describe("auth.helper", () => {
       expect(next).not.toHaveBeenCalled();
     });
 
+    it("returns 401 when jwt.verify resolves without a decoded payload", async () => {
+      const token = signToken({ id: 1, role: "USER" });
+      const req = mockReq(`Bearer ${token}`);
+      const res = mockRes();
+      const verifySpy = vi.spyOn(jwt, "verify").mockReturnValue(null as any);
+
+      await authenticateRequest(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Invalid or expired token!" }),
+      );
+      expect(next).not.toHaveBeenCalled();
+
+      verifySpy.mockRestore();
+    });
+
     it("returns 401 for a malformed/garbage token", async () => {
       const req = mockReq("Bearer not-a-real-jwt");
       const res = mockRes();
@@ -173,6 +190,32 @@ describe("auth.helper", () => {
       const req = mockReq("Bearer garbage");
       expect(getUserIdFromToken(req)).toBeNull();
     });
+
+    it("accepts a raw token without the 'Bearer ' prefix", () => {
+      const token = signToken({ id: 4, role: "USER" });
+      const req = mockReq(token);
+
+      expect(getUserIdFromToken(req)).toBe(4);
+    });
+
+    it("falls back to req.headers.authorization when req.get is unavailable", () => {
+      const token = signToken({ id: 6, role: "USER" });
+      const req = {
+        get: () => undefined,
+        headers: { authorization: `Bearer ${token}` },
+      } as unknown as Request;
+
+      expect(getUserIdFromToken(req)).toBe(6);
+    });
+
+    it("returns null when jwt.verify resolves without a decoded payload", () => {
+      const req = mockReq("Bearer some-token");
+      const verifySpy = vi.spyOn(jwt, "verify").mockReturnValue(null as any);
+
+      expect(getUserIdFromToken(req)).toBeNull();
+
+      verifySpy.mockRestore();
+    });
   });
 
   describe("getTokenPayload", () => {
@@ -203,6 +246,32 @@ describe("auth.helper", () => {
     it("returns null for an invalid token", () => {
       const req = mockReq("Bearer garbage");
       expect(getTokenPayload(req)).toBeNull();
+    });
+
+    it("accepts a raw token without the 'Bearer ' prefix", () => {
+      const token = signToken({ id: 8, email: "g@h.com", role: "USER" });
+      const req = mockReq(token);
+
+      expect(getTokenPayload(req)).toMatchObject({ id: 8, email: "g@h.com", role: "USER" });
+    });
+
+    it("falls back to req.headers.authorization when req.get is unavailable", () => {
+      const token = signToken({ id: 9, email: "i@j.com", role: "USER" });
+      const req = {
+        get: () => undefined,
+        headers: { authorization: `Bearer ${token}` },
+      } as unknown as Request;
+
+      expect(getTokenPayload(req)).toMatchObject({ id: 9, email: "i@j.com", role: "USER" });
+    });
+
+    it("returns null when jwt.verify resolves without a decoded payload", () => {
+      const req = mockReq("Bearer some-token");
+      const verifySpy = vi.spyOn(jwt, "verify").mockReturnValue(null as any);
+
+      expect(getTokenPayload(req)).toBeNull();
+
+      verifySpy.mockRestore();
     });
   });
 });
