@@ -71,6 +71,20 @@ describe("auth.service", () => {
       expect(decoded.id).toBe(1);
       expect(decoded.role).toBe("USER");
     });
+
+    it("throws 500 when the underlying JWT library fails to sign", async () => {
+      const signSpy = vi.spyOn(jwt, "sign").mockImplementation(() => {
+        throw new Error("signing failed");
+      });
+
+      await expect(
+        authService.createUserToken({
+          userTokenPayload: { id: 1, email: "a@b.com", role: "USER" },
+        }),
+      ).rejects.toMatchObject({ statusCode: 500, message: "Failed to generate token" });
+
+      signSpy.mockRestore();
+    });
   });
 
   describe("findUserByEmail", () => {
@@ -194,6 +208,16 @@ describe("auth.service", () => {
       ).rejects.toThrow("Invalid or expired reset token");
     });
 
+    it("rejects a validly-signed token missing required payload fields", async () => {
+      const token = jwt.sign({ email: "user@example.com" }, env.JWT_SECRET, {
+        expiresIn: "15m",
+      });
+
+      await expect(
+        authService.resetPassword(token, "validPassword123"),
+      ).rejects.toThrow("Invalid token payload");
+    });
+
     it("rejects when the user in the token no longer exists", async () => {
       const token = jwt.sign({ id: 1, email: "user@example.com" }, env.JWT_SECRET, {
         expiresIn: "15m",
@@ -244,6 +268,24 @@ describe("auth.service", () => {
         message: "This reset link has already been used",
       });
     });
+
+    it("falls back to a generic message when the transaction failure carries none", async () => {
+      const token = jwt.sign({ id: 1, email: "user@example.com" }, env.JWT_SECRET, {
+        expiresIn: "15m",
+      });
+      vi.mocked(authRepository.findUserByEmailSafe).mockResolvedValue({
+        id: 1,
+        email: "user@example.com",
+      } as any);
+      vi.mocked(authRepository.executeResetPasswordTransaction).mockRejectedValue({});
+
+      await expect(
+        authService.resetPassword(token, "validPassword123"),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Failed to reset password",
+      });
+    });
   });
 
   describe("initiateSignup", () => {
@@ -264,6 +306,19 @@ describe("auth.service", () => {
 
       await expect(authService.initiateSignup(input)).rejects.toMatchObject({
         statusCode: 429,
+      });
+    });
+
+    it("allows a new request once a previous cooldown has expired", async () => {
+      vi.mocked(authRepository.findUserByEmailSafe).mockResolvedValue(undefined as any);
+      vi.mocked(authRepository.findLatestUnusedOtpByEmail).mockResolvedValue({
+        createdAt: new Date(Date.now() - 5 * 60 * 1000),
+      } as any);
+      vi.mocked(authRepository.invalidateUnusedOtpForEmail).mockResolvedValue(undefined as any);
+      vi.mocked(authRepository.createOtpVerificationRecord).mockResolvedValue({ id: 1 } as any);
+
+      await expect(authService.initiateSignup(input)).resolves.toMatchObject({
+        message: expect.any(String),
       });
     });
 
@@ -354,6 +409,33 @@ describe("auth.service", () => {
       expect(authRepository.createOtpVerificationRecord).toHaveBeenCalledWith(
         expect.objectContaining({ payload: oldOtp.payload }),
       );
+    });
+
+    it("throws 500 when the new verification record could not be created", async () => {
+      vi.mocked(authRepository.findLatestUnusedOtpByEmail).mockResolvedValue({
+        createdAt: new Date(Date.now() - 5 * 60 * 1000),
+        payload: { name: "Alice", hashedPassword: "hash" },
+      } as any);
+      vi.mocked(authRepository.invalidateUnusedOtpForEmail).mockResolvedValue(undefined as any);
+      vi.mocked(authRepository.createOtpVerificationRecord).mockResolvedValue(undefined as any);
+
+      await expect(authService.resendSignupOtp("a@b.com")).rejects.toMatchObject({
+        statusCode: 500,
+      });
+    });
+
+    it("still succeeds even if the resend email fails to send", async () => {
+      vi.mocked(authRepository.findLatestUnusedOtpByEmail).mockResolvedValue({
+        createdAt: new Date(Date.now() - 5 * 60 * 1000),
+        payload: { name: "Alice", hashedPassword: "hash" },
+      } as any);
+      vi.mocked(authRepository.invalidateUnusedOtpForEmail).mockResolvedValue(undefined as any);
+      vi.mocked(authRepository.createOtpVerificationRecord).mockResolvedValue({ id: 2 } as any);
+      vi.mocked(sendSignupOtpEmail).mockResolvedValue(false);
+
+      await expect(authService.resendSignupOtp("a@b.com")).resolves.toEqual({
+        message: "A new verification code has been sent.",
+      });
     });
   });
 
@@ -463,6 +545,82 @@ describe("auth.service", () => {
       await expect(
         authService.verifySignupOtp({ email: "a@b.com", otp: "1234" }),
       ).rejects.toMatchObject({ statusCode: 409 });
+    });
+
+    it("maps a message-based 'unique' failure to a 409 AppError even without a recognized error code", async () => {
+      vi.mocked(authRepository.findLatestUnusedOtpByEmail).mockResolvedValue({
+        id: 7,
+        used: false,
+        expiresAt: new Date(Date.now() + 60_000),
+        attempts: 0,
+        otpHash: await bcrypt.hash("1234", 10),
+        payload: { name: "Alice", hashedPassword: "hash" },
+      } as any);
+      vi.mocked(authRepository.executeVerifyAndCreateUserTransaction).mockRejectedValue(
+        new Error("duplicate key value violates unique constraint"),
+      );
+
+      await expect(
+        authService.verifySignupOtp({ email: "a@b.com", otp: "1234" }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+    });
+
+    it("wraps an unexpected transaction failure into a 500 AppError", async () => {
+      vi.mocked(authRepository.findLatestUnusedOtpByEmail).mockResolvedValue({
+        id: 7,
+        used: false,
+        expiresAt: new Date(Date.now() + 60_000),
+        attempts: 0,
+        otpHash: await bcrypt.hash("1234", 10),
+        payload: { name: "Alice", hashedPassword: "hash" },
+      } as any);
+      vi.mocked(authRepository.executeVerifyAndCreateUserTransaction).mockRejectedValue(
+        new Error("database is unreachable"),
+      );
+
+      await expect(
+        authService.verifySignupOtp({ email: "a@b.com", otp: "1234" }),
+      ).rejects.toMatchObject({ statusCode: 500, message: "database is unreachable" });
+    });
+
+    it("falls back to a generic message when the transaction failure carries none", async () => {
+      vi.mocked(authRepository.findLatestUnusedOtpByEmail).mockResolvedValue({
+        id: 7,
+        used: false,
+        expiresAt: new Date(Date.now() + 60_000),
+        attempts: 0,
+        otpHash: await bcrypt.hash("1234", 10),
+        payload: { name: "Alice", hashedPassword: "hash" },
+      } as any);
+      vi.mocked(authRepository.executeVerifyAndCreateUserTransaction).mockRejectedValue({});
+
+      await expect(
+        authService.verifySignupOtp({ email: "a@b.com", otp: "1234" }),
+      ).rejects.toMatchObject({
+        statusCode: 500,
+        message: "Failed to complete user registration.",
+      });
+    });
+
+    it("throws 500 when the transaction resolves without creating a user", async () => {
+      vi.mocked(authRepository.findLatestUnusedOtpByEmail).mockResolvedValue({
+        id: 7,
+        used: false,
+        expiresAt: new Date(Date.now() + 60_000),
+        attempts: 0,
+        otpHash: await bcrypt.hash("1234", 10),
+        payload: { name: "Alice", hashedPassword: "hash" },
+      } as any);
+      vi.mocked(authRepository.executeVerifyAndCreateUserTransaction).mockResolvedValue(
+        undefined as any,
+      );
+
+      await expect(
+        authService.verifySignupOtp({ email: "a@b.com", otp: "1234" }),
+      ).rejects.toMatchObject({
+        statusCode: 500,
+        message: "Failed to complete user registration.",
+      });
     });
   });
 });

@@ -126,6 +126,21 @@ describe("return.service", () => {
       await expect(returnService.requestReturn(1, 1, 5)).rejects.toMatchObject({ statusCode: 400 });
     });
 
+    it("serialized booking: throws 409 when the request loses a race (state changed mid-transaction)", async () => {
+      vi.mocked(returnRepository.getBookingForReturn).mockResolvedValue({
+        userId: 1,
+        status: "active",
+      } as any);
+      vi.mocked(rentalBookingItemRepository.getOutstandingItems).mockResolvedValue([
+        { id: 11, equipmentItemId: 101 },
+      ] as any);
+      vi.mocked(returnRepository.requestReturn).mockResolvedValue(undefined as any);
+
+      await expect(returnService.requestReturn(1, 1)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+    });
+
     it("serialized booking: throws 400 for a zero/negative quantity", async () => {
       vi.mocked(returnRepository.getBookingForReturn).mockResolvedValue({
         userId: 1,
@@ -243,6 +258,35 @@ describe("return.service", () => {
       expect(result.fine).toMatchObject({ id: 55, totalFine: 150 });
     });
 
+    it("creates no fine for a not-late 'damaged' return with no damage fee supplied", async () => {
+      const notLateBooking = { ...baseBooking, rentTo: new Date(Date.now() + 60 * 60 * 1000) };
+      vi.mocked(returnRepository.getBookingForReturn).mockResolvedValue(notLateBooking as any);
+      vi.mocked(returnRepository.confirmReturn).mockResolvedValue({ id: 1, status: "returned" } as any);
+      vi.mocked(returnRepository.restoreEquipmentStock).mockResolvedValue({} as any);
+
+      const result = await returnService.confirmReturn(1, { condition: "damaged" });
+
+      expect(fineRepository.createFine).not.toHaveBeenCalled();
+      expect(result.fine).toBeNull();
+    });
+
+    it("syncs assigned physical units to their reported condition on a non-'good' return", async () => {
+      const notLateBooking = { ...baseBooking, rentTo: new Date(Date.now() + 60 * 60 * 1000) };
+      vi.mocked(returnRepository.getBookingForReturn).mockResolvedValue(notLateBooking as any);
+      vi.mocked(returnRepository.confirmReturn).mockResolvedValue({ id: 1, status: "returned" } as any);
+      vi.mocked(returnRepository.restoreEquipmentStock).mockResolvedValue({} as any);
+      vi.mocked(fineRepository.createFine).mockResolvedValue({ id: 58 } as any);
+      vi.mocked(rentalBookingItemRepository.getAssignedItemIds).mockResolvedValue([101]);
+
+      await returnService.confirmReturn(1, { condition: "damaged", damageFee: 50 });
+
+      expect(equipmentItemRepository.updateEquipmentItemsStatus).toHaveBeenCalledWith(
+        [101],
+        "damaged",
+        expect.anything(),
+      );
+    });
+
     it("charges replacement cost and does NOT restore stock for a 'lost' item", async () => {
       const notLateBooking = { ...baseBooking, rentTo: new Date(Date.now() + 60 * 60 * 1000) };
       vi.mocked(returnRepository.getBookingForReturn).mockResolvedValue(notLateBooking as any);
@@ -338,6 +382,31 @@ describe("return.service", () => {
       vi.mocked(returnRepository.restoreEquipmentStock).mockResolvedValue({} as any);
     });
 
+    it("throws 500 when the booking's equipment data is missing", async () => {
+      vi.mocked(returnRepository.getBookingForReturn).mockResolvedValue({
+        ...baseBooking,
+        equipment: undefined,
+      } as any);
+
+      await expect(
+        returnService.confirmReturn(1, {
+          items: [{ equipmentItemId: 101, condition: "good" }],
+        }),
+      ).rejects.toMatchObject({ statusCode: 500 });
+    });
+
+    it("throws 400 when a damaged item is submitted without a damage fee", async () => {
+      await expect(
+        returnService.confirmReturn(1, {
+          items: [
+            { equipmentItemId: 101, condition: "damaged" },
+            { equipmentItemId: 102, condition: "good" },
+            { equipmentItemId: 103, condition: "good" },
+          ],
+        }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    });
+
     it("throws 400 when 'items' is missing for a serialized booking", async () => {
       await expect(returnService.confirmReturn(1, { condition: "good" })).rejects.toMatchObject({
         statusCode: 400,
@@ -398,6 +467,40 @@ describe("return.service", () => {
         { equipmentItemId: 102, condition: "damaged", damageFee: 50 },
         { equipmentItemId: 103, condition: "lost", damageFee: null },
       ]);
+    });
+
+    it("adds a late fee to the combined fine when the booking is overdue", async () => {
+      vi.mocked(returnRepository.getBookingForReturn).mockResolvedValue({
+        ...baseBooking,
+        rentTo: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days late
+      } as any);
+
+      const result = await returnService.confirmReturn(1, {
+        items: [
+          { equipmentItemId: 101, condition: "good" },
+          { equipmentItemId: 102, condition: "good" },
+          { equipmentItemId: 103, condition: "good" },
+        ],
+      });
+
+      expect(fineRepository.createFine).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 300, reason: "late:300" }),
+        expect.anything(),
+      );
+      expect(result.fine).toMatchObject({ totalFine: 300 });
+    });
+
+    it("does not restore equipment stock when every returned unit is lost", async () => {
+      const result = await returnService.confirmReturn(1, {
+        items: [
+          { equipmentItemId: 101, condition: "lost" },
+          { equipmentItemId: 102, condition: "lost" },
+          { equipmentItemId: 103, condition: "lost" },
+        ],
+      });
+
+      expect(returnRepository.restoreEquipmentStock).not.toHaveBeenCalled();
+      expect(result.fine).toMatchObject({ totalFine: 300 });
     });
 
     it("throws 400 when a per-item damage fee exceeds the 1.5x cap", async () => {

@@ -85,6 +85,15 @@ describe("equipmentItem.service", () => {
         equipmentItemService.bulkCreateEquipmentItems(1, [{ serialNumber: "A-1" }]),
       ).rejects.toMatchObject({ statusCode: 409 });
     });
+
+    it("rethrows non-uniqueness errors as-is", async () => {
+      vi.mocked(equipmentRepository.getEquipmentFromId).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(equipmentItemRepository.bulkCreateEquipmentItems).mockRejectedValue(new Error("boom"));
+
+      await expect(
+        equipmentItemService.bulkCreateEquipmentItems(1, [{ serialNumber: "A-1" }]),
+      ).rejects.toThrow("boom");
+    });
   });
 
   describe("getEquipmentItemsByEquipmentId", () => {
@@ -151,6 +160,18 @@ describe("equipmentItem.service", () => {
       await expect(
         equipmentItemService.updateEquipmentItem(1, 5, { serialNumber: "DUP" }),
       ).rejects.toMatchObject({ statusCode: 409 });
+    });
+
+    it("rethrows non-uniqueness errors as-is", async () => {
+      vi.mocked(equipmentItemRepository.getEquipmentItemById).mockResolvedValue({
+        id: 5,
+        equipmentId: 1,
+      } as any);
+      vi.mocked(equipmentItemRepository.updateEquipmentItem).mockRejectedValue(new Error("boom"));
+
+      await expect(
+        equipmentItemService.updateEquipmentItem(1, 5, { status: "damaged" }),
+      ).rejects.toThrow("boom");
     });
   });
 
